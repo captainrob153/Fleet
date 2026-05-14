@@ -170,6 +170,7 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
       <div class="header-sub" id="header-sub">Loading…</div>
     </div>
     <div style="display:flex;gap:8px">
+      <div class="hdr-btn" onclick="exportCSV()" title="Export CSV">&#x21E9;</div>
       <div class="hdr-btn" onclick="openSearch()" title="Search">&#x2315;</div>
     </div>
   </div>
@@ -683,6 +684,32 @@ function saveFromPhoto() {
 
 function fileToBase64(file) {
   return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('fail')); r.readAsDataURL(file); });
+}
+
+function exportCSV() {
+  if (!vehicles.length) { showToast('No vehicles to export'); return; }
+  const headers = ['Name','VIN / Serial / Model #','Type','Oil Type','Oil Capacity (qts)','Filter Part #','Belt Size(s)','Wiper Size(s)','Current Mileage/Hours','Last Oil Change (mi/hr)','Oil Change Interval (mi/hr)','Oil Status','Notes'];
+  const rows = vehicles.map(v => {
+    const s = oilStatus(v);
+    const statusLabel = s === 'over' ? 'Overdue' : s === 'due' ? 'Due soon' : s === 'ok' ? 'Up to date' : 'No interval set';
+    return [
+      v.name||'', v.vin||'', v.type||'', v.oilType||'',
+      v.oilCapacity||'', v.filterPart||'', v.beltSizes||'', v.wiperSizes||'',
+      v.currentReading||0, v.lastOilChange||0, v.interval||'',
+      statusLabel, v.notes||''
+    ].map(val => `"${String(val).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fleet-inventory-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV exported!');
 }
 
 function showToast(msg) {
