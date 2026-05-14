@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Fleet Manager">
+<meta name="theme-color" content="#f8f7f4">
+<title>Fleet Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --surface2: #f1f0ec;
+  --border: rgba(0,0,0,0.10);
+  --border2: rgba(0,0,0,0.18);
+  --text: #1a1a18;
+  --text2: #6b6b67;
+  --text3: #9b9b96;
+  --accent: #1a1a18;
+  --green-bg: #e8f5e0; --green-text: #2d6a1a;
+  --amber-bg: #fef3d8; --amber-text: #7a4d08;
+  --red-bg: #fde8e8; --red-text: #961f1f;
+  --blue-bg: #e4effe; --blue-text: #1a3f8f;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151514;
+    --surface: #1f1f1d;
+    --surface2: #2a2a27;
+    --border: rgba(255,255,255,0.09);
+    --border2: rgba(255,255,255,0.16);
+    --text: #f0efe9;
+    --text2: #9b9b95;
+    --text3: #6a6a65;
+    --accent: #f0efe9;
+    --green-bg: #1a2f12; --green-text: #7ec860;
+    --amber-bg: #2a1f08; --amber-text: #d4a030;
+    --red-bg: #2a1010; --red-text: #e07070;
+    --blue-bg: #0f1f3a; --blue-text: #7aabef;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
+#app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.header-title{font-size:20px;font-weight:600;letter-spacing:-0.3px}
+.header-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.hdr-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--text)}
+.hdr-btn:active{opacity:.7}
+
+/* Summary strip */
+.summary-strip{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.summary-strip::-webkit-scrollbar{display:none}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;white-space:nowrap;flex-shrink:0}
+.stat-pill .val{font-size:17px;font-weight:600;line-height:1.1}
+.stat-pill .lbl{font-size:11px;color:var(--text2)}
+
+/* Tab bar */
+.tab-bar{display:flex;padding:0 16px;gap:4px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.tab-item{flex:1;text-align:center;padding:10px 4px;font-size:13px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px}
+.tab-item.active{color:var(--text);border-bottom-color:var(--text)}
+
+/* Scroll area */
+.scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 120px}
+
+/* Vehicle card */
+.vehicle-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer;transition:opacity .15s}
+.vehicle-card:active{opacity:.75}
+.vc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.vc-name{font-size:15px;font-weight:600;line-height:1.3}
+.vc-vin{font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:2px}
+.vc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:8px}
+.vc-field label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.vc-field span{font-size:12.5px;color:var(--text);display:block;margin-top:1px}
+.vc-actions{display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.vc-btn{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 4px;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.vc-btn:active{opacity:.7}
+.vc-btn.danger{color:var(--red-text);background:var(--red-bg);border-color:transparent}
+
+/* Schedule card */
+.sched-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.sched-card.overdue{border-color:var(--red-text);background:var(--red-bg)}
+.sched-card.due{border-color:#c08000;background:var(--amber-bg)}
+.sc-name{font-size:15px;font-weight:600}
+.sc-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.sc-label{font-size:12px;color:var(--text2)}
+.sc-val{font-size:13px;font-weight:500}
+.progress-track{height:6px;background:var(--surface2);border-radius:3px;margin-top:10px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .3s}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.b-ok{background:var(--green-bg);color:var(--green-text)}
+.b-due{background:var(--amber-bg);color:var(--amber-text)}
+.b-over{background:var(--red-bg);color:var(--red-text)}
+.b-type{background:var(--blue-bg);color:var(--blue-text)}
+
+/* FAB */
+.fab-group{position:fixed;bottom:calc(16px + var(--safe-bottom));right:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-end;z-index:40}
+.fab{width:56px;height:56px;border-radius:28px;background:var(--text);color:var(--bg);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;box-shadow:0 4px 16px rgba(0,0,0,0.25);transition:transform .15s}
+.fab:active{transform:scale(0.93)}
+.fab-small{width:44px;height:44px;border-radius:22px;background:var(--surface);border:1.5px solid var(--border2);color:var(--text);font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,0.15)}
+.fab-label{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.12);white-space:nowrap}
+.fab-row{display:flex;align-items:center;gap:10px}
+
+/* Sheets / modals */
+.sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:60}
+.sheet-bg.open{display:block}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;padding:0 0 calc(16px + var(--safe-bottom));z-index:61;max-height:92vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1)}
+.sheet.open{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 0}
+.sheet-header{padding:14px 20px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sheet-title{font-size:17px;font-weight:600}
+.sheet-close{width:30px;height:30px;border-radius:15px;background:var(--surface2);border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 20px 20px;flex:1}
+
+/* Form */
+.form-section{font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;margin:16px 0 8px}
+.form-section:first-child{margin-top:0}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;-webkit-appearance:none;appearance:none}
+.field input:focus,.field select:focus{outline:none;border-color:var(--text);background:var(--surface)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-primary{width:100%;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius-sm);padding:14px;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:8px}
+.btn-primary:active{opacity:.8}
+
+/* Photo scanner */
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px 20px;text-align:center;cursor:pointer;margin-bottom:16px}
+.upload-zone.scanning{border-color:#378ADD;background:var(--blue-bg)}
+.upload-zone.done{border-color:var(--green-text);background:var(--green-bg);border-style:solid}
+.upload-icon{font-size:36px;display:block;margin-bottom:8px}
+.upload-text{font-size:14px;color:var(--text2);line-height:1.5}
+.prog-track{height:4px;background:var(--surface2);border-radius:2px;margin:12px 0 0;overflow:hidden;display:none}
+.prog-fill{height:100%;background:#378ADD;border-radius:2px;transition:width .3s}
+
+/* Empty state */
+.empty-state{text-align:center;padding:48px 24px;color:var(--text2)}
+.empty-icon{font-size:44px;display:block;margin-bottom:12px}
+.empty-title{font-size:17px;font-weight:600;color:var(--text);margin-bottom:6px}
+.empty-sub{font-size:14px;line-height:1.6}
+
+/* Search bar */
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;margin-bottom:12px}
+.search-bar input{flex:1;background:none;border:none;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif}
+.search-bar input:focus{outline:none}
+.search-bar svg{flex-shrink:0;color:var(--text3)}
+
+/* Toast */
+.toast{position:fixed;top:calc(12px + var(--safe-top));left:50%;transform:translateX(-50%) translateY(-60px);background:var(--text);color:var(--bg);padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:100;transition:transform .3s;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="header-title">Fleet Manager</div>
+      <div class="header-sub" id="header-sub">Loading…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="hdr-btn" onclick="openSearch()" title="Search">&#x2315;</div>
+    </div>
+  </div>
+
+  <div class="summary-strip" id="summary-strip"></div>
+
+  <div class="tab-bar">
+    <div class="tab-item active" onclick="setTab('inventory',this)">Inventory</div>
+    <div class="tab-item" onclick="setTab('schedule',this)">Oil schedule</div>
+  </div>
+
+  <div class="scroll-area" id="scroll-area"></div>
+
+  <div class="fab-group" id="fab-group">
+    <div class="fab-row" id="fab-scan-row" style="display:none">
+      <div class="fab-label">Scan VIN photo</div>
+      <div class="fab fab-small" onclick="openPhotoSheet()" title="Scan VIN">&#128247;</div>
+    </div>
+    <div class="fab-row" id="fab-add-row" style="display:none">
+      <div class="fab-label">Add vehicle</div>
+      <div class="fab fab-small" onclick="openFormSheet()" title="Add vehicle">&#43;</div>
+    </div>
+    <div class="fab" id="fab-main" onclick="toggleFab()" title="Add">&#43;</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Sheet background -->
+<div class="sheet-bg" id="sheet-bg" onclick="closeAllSheets()"></div>
+
+<!-- Form sheet -->
+<div class="sheet" id="form-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="form-title">Add vehicle</div>
+    <button class="sheet-close" onclick="closeAllSheets()">&#x2715;</button>
+  </div>
+  <div class="sheet-body">
+    <div class="form-section">Vehicle info</div>
+    <div class="field"><label>Vehicle name / description *</label><input type="text" id="fName" placeholder="e.g. 2021 Ford F-250, JD X350 Mower"></div>
+    <div class="field-row">
+      <div class="field"><label>VIN / serial / model #</label><input type="text" id="fVin" placeholder="VIN or model #"></div>
+      <div class="field"><label>Type</label>
+        <select id="fType">
+          <option>Car / Truck</option>
+          <option>Lawn mower</option>
+          <option>4-Wheeler / ATV</option>
+          <option>Side-by-side / UTV</option>
+          <option>Skid steer</option>
+          <option>Tractor</option>
+          <option>Trailer</option>
+          <option>Generator</option>
+          <option>Boat</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section">Oil &amp; filter</div>
+    <div class="field-row">
+      <div class="field"><label>Oil type</label>
+        <select id="fOil">
+          <option>0W-20 Full Synthetic</option>
+          <option>5W-20 Full Synthetic</option>
+          <option>5W-30 Full Synthetic</option>
+          <option>5W-30 Conventional</option>
+          <option>10W-30 Conventional</option>
+          <option>10W-40 Conventional</option>
+          <option>15W-40 Diesel</option>
+          <option>SAE 30 Small Engine</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Oil capacity (qts)</label><input type="number" id="fOilCap" inputmode="decimal" step="0.5" min="0" placeholder="e.g. 5"></div>
+    </div>
+    <div class="field"><label>Filter part #</label><input type="text" id="fFilt" placeholder="e.g. Fram PH6607"></div>
+
+    <div class="form-section">Belts &amp; wipers</div>
+    <div class="field"><label>Belt size(s)</label><input type="text" id="fBelt" placeholder="e.g. A57, 4L600, 5/8 x 95"></div>
+    <div class="field"><label>Wiper size(s)</label><input type="text" id="fWiper" placeholder='e.g. 22" driver / 18" pass'></div>
+
+    <div class="form-section">Oil change schedule</div>
+    <div class="field-row">
+      <div class="field"><label>Current mi / hours</label><input type="number" id="fCur" inputmode="numeric" min="0" placeholder="0"></div>
+      <div class="field"><label>Last change at (mi/hr)</label><input type="number" id="fLast" inputmode="numeric" min="0" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Change interval (mi or hours)</label><input type="number" id="fInterval" inputmode="numeric" min="0" step="100" placeholder="e.g. 3000 mi or 50 hrs"></div>
+
+    <div class="form-section">Notes</div>
+    <div class="field"><label>Notes</label><input type="text" id="fNotes" placeholder="Any extra info…"></div>
+
+    <button class="btn-primary" onclick="saveVehicle()">Save vehicle</button>
+  </div>
+</div>
+
+<!-- Photo sheet -->
+<div class="sheet" id="photo-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title">Scan VIN / model plate</div>
+    <button class="sheet-close" onclick="closeAllSheets()">&#x2715;</button>
+  </div>
+  <div class="sheet-body">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('vin-file').click()">
+      <span class="upload-icon" id="upload-icon">&#128247;</span>
+      <div class="upload-text" id="upload-text">Tap to take a photo or choose from library<br><span style="font-size:12px;opacity:.7">VIN plate, model sticker, or data tag</span></div>
+      <div class="prog-track" id="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <input type="file" id="vin-file" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
+
+    <div id="scan-result" style="display:none">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">&#10003; AI scan complete — review and edit:</p>
+
+      <div class="field"><label>Vehicle name / description *</label><input type="text" id="pName" placeholder="Required"></div>
+      <div class="field-row">
+        <div class="field"><label>VIN / model #</label><input type="text" id="pVin"></div>
+        <div class="field"><label>Type</label>
+          <select id="pType">
+            <option>Car / Truck</option><option>Lawn mower</option><option>4-Wheeler / ATV</option>
+            <option>Side-by-side / UTV</option><option>Skid steer</option><option>Tractor</option>
+            <option>Trailer</option><option>Generator</option><option>Boat</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Oil type</label>
+          <select id="pOil">
+            <option>0W-20 Full Synthetic</option><option>5W-20 Full Synthetic</option>
+            <option>5W-30 Full Synthetic</option><option>5W-30 Conventional</option>
+            <option>10W-30 Conventional</option><option>SAE 30 Small Engine</option>
+            <option>15W-40 Diesel</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Oil cap (qts)</label><input type="number" id="pOilCap" inputmode="decimal" step="0.5"></div>
+      </div>
+      <div class="field"><label>Filter part #</label><input type="text" id="pFilt"></div>
+      <div class="field"><label>Belt size(s)</label><input type="text" id="pBelt"></div>
+      <div class="field"><label>Wiper size(s)</label><input type="text" id="pWiper"></div>
+      <div class="field-row">
+        <div class="field"><label>Current mi/hr</label><input type="number" id="pCur" inputmode="numeric" value="0"></div>
+        <div class="field"><label>Change interval</label><input type="number" id="pInterval" inputmode="numeric" step="100"></div>
+      </div>
+      <button class="btn-primary" onclick="saveFromPhoto()">Add to fleet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail sheet -->
+<div class="sheet" id="detail-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="detail-title">Vehicle</div>
+    <button class="sheet-close" onclick="closeAllSheets()">&#x2715;</button>
+  </div>
+  <div class="sheet-body" id="detail-body"></div>
+</div>
+
+<script>
+let vehicles = [];
+let nextId = 1;
+let editId = null;
+let currentTab = 'inventory';
+let searchQuery = '';
+let fabOpen = false;
+
+const STORE_KEY = 'fleet_v2';
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({vehicles, nextId})); } catch(e){}
+}
+function load() {
+  try {
+    const d = localStorage.getItem(STORE_KEY);
+    if (d) { const p = JSON.parse(d); vehicles = p.vehicles||[]; nextId = p.nextId||1; }
+  } catch(e){}
+  if (!vehicles.length) seedData();
+  render();
+}
+
+function seedData() {
+  vehicles = [
+    {id:nextId++,name:'2020 Ford F-250 Diesel',vin:'1FT7W2BT0LEC12345',type:'Car / Truck',oilType:'15W-40 Diesel',oilCapacity:13,filterPart:'Motorcraft FL2016',beltSizes:'Serpentine 6K815',wiperSizes:'22" / 22"',currentReading:47200,lastOilChange:45000,interval:5000,notes:''},
+    {id:nextId++,name:'John Deere X350 Mower',vin:'1GX350AA1J123456',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'AM125424',beltSizes:'GX20571 deck, GX20006 drive',wiperSizes:'—',currentReading:124,lastOilChange:75,interval:100,notes:''},
+    {id:nextId++,name:'2019 Polaris Ranger 1000',vin:'3NSRSE997KF123456',type:'Side-by-side / UTV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2520799',beltSizes:'3211180',wiperSizes:'—',currentReading:890,lastOilChange:800,interval:100,notes:''},
+    {id:nextId++,name:'2018 Can-Am Outlander 650',vin:'3JBGNAL14JJ123456',type:'4-Wheeler / ATV',oilType:'5W-40 Full Synthetic',oilCapacity:2.9,filterPart:'420956741',beltSizes:'—',wiperSizes:'—',currentReading:310,lastOilChange:250,interval:100,notes:''},
+    {id:nextId++,name:'2021 Bobcat S76 Skid Steer',vin:'AHM400NNN1N123456',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:11,filterPart:'6692305',beltSizes:'',wiperSizes:'',currentReading:620,lastOilChange:350,interval:250,notes:'Hydraulic filter: 6563328'},
+  ];
+  save();
+}
+
+function oilStatus(v) {
+  if (!v.interval) return null;
+  const used = (v.currentReading||0) - (v.lastOilChange||0);
+  const pct = used / v.interval;
+  if (pct >= 1) return 'over';
+  if (pct >= 0.85) return 'due';
+  return 'ok';
+}
+
+function render() {
+  renderSummary();
+  if (currentTab === 'inventory') renderInventory();
+  else renderSchedule();
+}
+
+function renderSummary() {
+  const total = vehicles.length;
+  const over = vehicles.filter(v=>oilStatus(v)==='over').length;
+  const due = vehicles.filter(v=>oilStatus(v)==='due').length;
+  document.getElementById('header-sub').textContent = `${total} vehicle${total!==1?'s':''}`;
+  document.getElementById('summary-strip').innerHTML = `
+    <div class="stat-pill"><div class="val">${total}</div><div class="lbl">Total</div></div>
+    <div class="stat-pill"><div class="val" style="color:var(--green-text)">${total-over-due}</div><div class="lbl">OK</div></div>
+    <div class="stat-pill"><div class="val" style="color:var(--amber-text)">${due}</div><div class="lbl">Due soon</div></div>
+    <div class="stat-pill"><div class="val" style="color:var(--red-text)">${over}</div><div class="lbl">Overdue</div></div>`;
+}
+
+function renderInventory() {
+  const area = document.getElementById('scroll-area');
+  const q = searchQuery.toLowerCase();
+  const list = vehicles.filter(v => !q || [v.name,v.vin,v.type,v.oilType].join(' ').toLowerCase().includes(q));
+  if (!list.length) {
+    area.innerHTML = `<div class="empty-state"><span class="empty-icon">&#128663;</span><div class="empty-title">${searchQuery ? 'No matches' : 'No vehicles yet'}</div><div class="empty-sub">${searchQuery ? 'Try a different search.' : 'Tap the + button to add your first vehicle, or scan a VIN plate.'}</div></div>`;
+    return;
+  }
+  area.innerHTML = list.map(v => {
+    const s = oilStatus(v);
+    const badge = s ? (s==='over'?'<span class="badge b-over">Overdue</span>':s==='due'?'<span class="badge b-due">Due soon</span>':'<span class="badge b-ok">Up to date</span>') : '';
+    return `<div class="vehicle-card" onclick="openDetail(${v.id})">
+      <div class="vc-top">
+        <div>
+          <div class="vc-name">${v.name}</div>
+          ${v.vin?`<div class="vc-vin">${v.vin}</div>`:''}
+        </div>
+        <span class="badge b-type">${v.type}</span>
+      </div>
+      <div style="margin-bottom:4px">${badge}</div>
+      <div class="vc-grid">
+        <div class="vc-field"><label>Oil</label><span>${v.oilType||'—'}</span></div>
+        <div class="vc-field"><label>Filter</label><span style="font-family:'DM Mono',monospace;font-size:11.5px">${v.filterPart||'—'}</span></div>
+        <div class="vc-field"><label>Belt(s)</label><span>${v.beltSizes||'—'}</span></div>
+        <div class="vc-field"><label>Wipers</label><span>${v.wiperSizes||'—'}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSchedule() {
+  const area = document.getElementById('scroll-area');
+  const withInt = vehicles.filter(v=>v.interval>0).sort((a,b)=>{
+    const o={over:0,due:1,ok:2};
+    return (o[oilStatus(a)]||3)-(o[oilStatus(b)]||3);
+  });
+  if (!withInt.length) {
+    area.innerHTML = `<div class="empty-state"><span class="empty-icon">&#128197;</span><div class="empty-title">No schedules set</div><div class="empty-sub">Add a vehicle and set an oil change interval to see the schedule here.</div></div>`;
+    return;
+  }
+  area.innerHTML = withInt.map(v => {
+    const s = oilStatus(v);
+    const used = (v.currentReading||0)-(v.lastOilChange||0);
+    const pct = Math.min(100, Math.round(used/v.interval*100));
+    const nextDue = (v.lastOilChange||0)+v.interval;
+    const remaining = nextDue-(v.currentReading||0);
+    const cls = s==='over'?'overdue':s==='due'?'due':'';
+    const barColor = s==='over'?'#e24b4a':s==='due'?'#e0a030':'#3b9e60';
+    return `<div class="sched-card ${cls}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="sc-name">${v.name}</div>
+        ${s?`<span class="badge ${s==='over'?'b-over':s==='due'?'b-due':'b-ok'}">${s==='over'?'Overdue':s==='due'?'Due soon':'Up to date'}</span>`:''}
+      </div>
+      <div class="sc-row"><span class="sc-label">Interval</span><span class="sc-val">Every ${v.interval.toLocaleString()} mi/hr</span></div>
+      <div class="sc-row"><span class="sc-label">Last changed</span><span class="sc-val">${v.lastOilChange!=null?v.lastOilChange.toLocaleString():'—'}</span></div>
+      <div class="sc-row"><span class="sc-label">Current reading</span><span class="sc-val">${v.currentReading!=null?v.currentReading.toLocaleString():'—'}</span></div>
+      <div class="sc-row"><span class="sc-label">${s==='over'?'Overdue by':'Remaining'}</span><span class="sc-val" style="color:${barColor}">${Math.abs(remaining).toLocaleString()} mi/hr</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function setTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function toggleFab() {
+  fabOpen = !fabOpen;
+  document.getElementById('fab-main').innerHTML = fabOpen ? '&#x2715;' : '&#43;';
+  document.getElementById('fab-scan-row').style.display = fabOpen ? 'flex' : 'none';
+  document.getElementById('fab-add-row').style.display = fabOpen ? 'flex' : 'none';
+}
+
+function closeFab() { fabOpen=false; document.getElementById('fab-main').innerHTML='&#43;'; document.getElementById('fab-scan-row').style.display='none'; document.getElementById('fab-add-row').style.display='none'; }
+
+function openSearch() {
+  const q = prompt('Search fleet:', searchQuery);
+  if (q === null) return;
+  searchQuery = q;
+  render();
+}
+
+function openFormSheet(v=null) {
+  closeFab();
+  editId = v?v.id:null;
+  document.getElementById('form-title').textContent = v ? 'Edit vehicle' : 'Add vehicle';
+  document.getElementById('fName').value = v?v.name||'':'';
+  document.getElementById('fVin').value = v?v.vin||'':'';
+  document.getElementById('fType').value = v?v.type:'Car / Truck';
+  document.getElementById('fOil').value = v?v.oilType:'5W-30 Full Synthetic';
+  document.getElementById('fOilCap').value = v?v.oilCapacity||'':'';
+  document.getElementById('fFilt').value = v?v.filterPart||'':'';
+  document.getElementById('fBelt').value = v?v.beltSizes||'':'';
+  document.getElementById('fWiper').value = v?v.wiperSizes||'':'';
+  document.getElementById('fCur').value = v?v.currentReading||'':'';
+  document.getElementById('fLast').value = v?v.lastOilChange||'':'';
+  document.getElementById('fInterval').value = v?v.interval||'':'';
+  document.getElementById('fNotes').value = v?v.notes||'':'';
+  openSheet('form-sheet');
+}
+
+function openPhotoSheet() {
+  closeFab();
+  document.getElementById('drop-zone').className='upload-zone';
+  document.getElementById('upload-icon').textContent='📷';
+  document.getElementById('upload-text').innerHTML='Tap to take a photo or choose from library<br><span style="font-size:12px;opacity:.7">VIN plate, model sticker, or data tag</span>';
+  document.getElementById('prog-track').style.display='none';
+  document.getElementById('prog-fill').style.width='0%';
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('vin-file').value='';
+  openSheet('photo-sheet');
+}
+
+function openDetail(id) {
+  const v = vehicles.find(x=>x.id===id);
+  if (!v) return;
+  document.getElementById('detail-title').textContent = v.name;
+  const s = oilStatus(v);
+  const used = (v.currentReading||0)-(v.lastOilChange||0);
+  const pct = v.interval ? Math.min(100,Math.round(used/v.interval*100)) : 0;
+  const barColor = s==='over'?'#e24b4a':s==='due'?'#e0a030':'#3b9e60';
+  document.getElementById('detail-body').innerHTML = `
+    <div style="margin-bottom:16px">
+      <span class="badge b-type">${v.type}</span>
+      ${v.vin?`<div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);margin-top:6px">${v.vin}</div>`:''}
+    </div>
+    ${s?`<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:500">Oil change status</span>
+        <span class="badge ${s==='over'?'b-over':s==='due'?'b-due':'b-ok'}">${s==='over'?'Overdue':s==='due'?'Due soon':'Up to date'}</span>
+      </div>
+      <div class="progress-track" style="margin-bottom:8px"><div class="progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
+        <span>Last: ${(v.lastOilChange||0).toLocaleString()}</span>
+        <span>Current: ${(v.currentReading||0).toLocaleString()}</span>
+        <span>Next: ${((v.lastOilChange||0)+(v.interval||0)).toLocaleString()}</span>
+      </div>
+    </div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      ${detailField('Oil type',v.oilType)}
+      ${detailField('Capacity',v.oilCapacity?v.oilCapacity+' qts':'—')}
+      ${detailField('Filter part #',v.filterPart,'mono')}
+      ${detailField('Interval',v.interval?v.interval.toLocaleString()+' mi/hr':'Not set')}
+      ${detailField('Belt size(s)',v.beltSizes||'—')}
+      ${detailField('Wiper sizes',v.wiperSizes||'—')}
+    </div>
+    ${v.notes?`<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text2)">&#x1F4CB; ${v.notes}</div>`:''}
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="vc-btn" style="flex:2" onclick="closeAllSheets();setTimeout(()=>openFormSheet(vehicles.find(x=>x.id==${id})),200)">&#9998; Edit</button>
+      <button class="vc-btn" style="flex:2" onclick="logOilChange(${id})">&#128197; Log oil change</button>
+      <button class="vc-btn danger" style="flex:1" onclick="delVehicle(${id})">&#x1F5D1;</button>
+    </div>`;
+  openSheet('detail-sheet');
+}
+
+function detailField(lbl, val, mono='') {
+  return `<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">${lbl}</div>
+    <div style="font-size:13px;${mono==='mono'?'font-family:DM Mono,monospace;':''}color:var(--text)">${val||'—'}</div>
+  </div>`;
+}
+
+function openSheet(id) {
+  document.getElementById('sheet-bg').classList.add('open');
+  document.getElementById(id).classList.add('open');
+}
+
+function closeAllSheets() {
+  document.getElementById('sheet-bg').classList.remove('open');
+  ['form-sheet','photo-sheet','detail-sheet'].forEach(id=>document.getElementById(id).classList.remove('open'));
+}
+
+function saveVehicle() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { document.getElementById('fName').focus(); showToast('Vehicle name is required'); return; }
+  const obj = {
+    name, vin:document.getElementById('fVin').value.trim(),
+    type:document.getElementById('fType').value,
+    oilType:document.getElementById('fOil').value,
+    oilCapacity:parseFloat(document.getElementById('fOilCap').value)||null,
+    filterPart:document.getElementById('fFilt').value.trim(),
+    beltSizes:document.getElementById('fBelt').value.trim(),
+    wiperSizes:document.getElementById('fWiper').value.trim(),
+    currentReading:parseInt(document.getElementById('fCur').value)||0,
+    lastOilChange:parseInt(document.getElementById('fLast').value)||0,
+    interval:parseInt(document.getElementById('fInterval').value)||0,
+    notes:document.getElementById('fNotes').value.trim(),
+  };
+  if (editId) { const i=vehicles.findIndex(v=>v.id===editId); vehicles[i]={...vehicles[i],...obj}; }
+  else vehicles.push({id:nextId++,...obj});
+  save(); closeAllSheets(); render();
+  showToast(editId?'Vehicle updated':'Vehicle added to fleet');
+}
+
+function logOilChange(id) {
+  closeAllSheets();
+  const v = vehicles.find(x=>x.id===id);
+  setTimeout(() => {
+    const cur = prompt(`Log oil change for ${v.name}\n\nEnter current mileage or hours:`, v.currentReading||0);
+    if (cur===null) return;
+    const n = parseInt(cur);
+    if (isNaN(n)) { showToast('Invalid number'); return; }
+    v.lastOilChange = n; v.currentReading = n;
+    save(); render(); showToast('Oil change logged!');
+  }, 350);
+}
+
+function delVehicle(id) {
+  if (!confirm('Remove this vehicle from the fleet?')) return;
+  vehicles = vehicles.filter(v=>v.id!==id);
+  save(); closeAllSheets(); render();
+  showToast('Vehicle removed');
+}
+
+async function handlePhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const zone = document.getElementById('drop-zone');
+  const icon = document.getElementById('upload-icon');
+  const text = document.getElementById('upload-text');
+  const progTrack = document.getElementById('prog-track');
+  const progFill = document.getElementById('prog-fill');
+  zone.className='upload-zone scanning';
+  icon.textContent='🔍';
+  text.innerHTML='Reading plate with AI…';
+  progTrack.style.display='block';
+  let prog=0;
+  const tick = setInterval(()=>{ prog=Math.min(prog+7,88); progFill.style.width=prog+'%'; },180);
+  try {
+    const b64 = await fileToBase64(file);
+    const mt = file.type||'image/jpeg';
+    const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mt,data:b64}},
+          {type:'text',text:`You are a fleet maintenance assistant. Examine this photo of a VIN plate, model sticker, or equipment data tag. Extract all visible information and return ONLY a JSON object (no markdown, no backticks, no explanation) with these exact fields:
+{"name":"Year Make Model or equipment name if readable, else empty string","vin":"VIN or serial or model number visible","type":"one of: Car / Truck | Lawn mower | 4-Wheeler / ATV | Side-by-side / UTV | Skid steer | Tractor | Trailer | Generator | Boat | Other","oilType":"recommended oil spec if visible else empty string","oilCapacity":null,"filterPart":"filter number if visible else empty string","beltSizes":"belt sizes if visible else empty string","wiperSizes":"wiper sizes if applicable else empty string","interval":null}
+Use null or empty string for anything not visible. Be precise about what is actually readable in the image.`}
+        ]}]
+      })
+    });
+    clearInterval(tick); progFill.style.width='100%';
+    const data = await resp.json();
+    const raw = (data.content||[]).map(b=>b.text||'').join('');
+    let p={};
+    try { p=JSON.parse(raw.replace(/```[a-z]*/g,'').replace(/```/g,'').trim()); } catch(e){}
+    document.getElementById('pName').value=p.name||'';
+    document.getElementById('pVin').value=p.vin||'';
+    document.getElementById('pType').value=p.type||'Car / Truck';
+    document.getElementById('pOil').value=p.oilType||'5W-30 Full Synthetic';
+    document.getElementById('pOilCap').value=p.oilCapacity||'';
+    document.getElementById('pFilt').value=p.filterPart||'';
+    document.getElementById('pBelt').value=p.beltSizes||'';
+    document.getElementById('pWiper').value=p.wiperSizes||'';
+    document.getElementById('pCur').value=0;
+    document.getElementById('pInterval').value=p.interval||'';
+    zone.className='upload-zone done';
+    icon.textContent='✓';
+    text.innerHTML='Scan complete — review the fields below';
+    document.getElementById('scan-result').style.display='block';
+  } catch(err) {
+    clearInterval(tick);
+    zone.className='upload-zone';
+    icon.textContent='📷';
+    text.innerHTML='Could not read photo — please try again';
+    progTrack.style.display='none';
+  }
+}
+
+function saveFromPhoto() {
+  const name=document.getElementById('pName').value.trim();
+  if (!name) { document.getElementById('pName').focus(); showToast('Vehicle name is required'); return; }
+  vehicles.push({id:nextId++,name,
+    vin:document.getElementById('pVin').value.trim(),
+    type:document.getElementById('pType').value,
+    oilType:document.getElementById('pOil').value,
+    oilCapacity:parseFloat(document.getElementById('pOilCap').value)||null,
+    filterPart:document.getElementById('pFilt').value.trim(),
+    beltSizes:document.getElementById('pBelt').value.trim(),
+    wiperSizes:document.getElementById('pWiper').value.trim(),
+    currentReading:parseInt(document.getElementById('pCur').value)||0,
+    lastOilChange:0,interval:parseInt(document.getElementById('pInterval').value)||0,notes:''});
+  save(); closeAllSheets(); render();
+  showToast('Vehicle added from photo scan!');
+}
+
+function fileToBase64(file) {
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('fail')); r.readAsDataURL(file); });
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+load();
+</script>
+</body>
+</html>
