@@ -213,7 +213,13 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
     <div class="form-section">Vehicle info</div>
     <div class="field"><label>Vehicle name / description *</label><input type="text" id="fName" placeholder="e.g. 2021 Ford F-250, JD X350 Mower"></div>
     <div class="field-row">
-      <div class="field"><label>VIN / serial / model #</label><input type="text" id="fVin" placeholder="VIN or model #"></div>
+      <div class="field" style="grid-column:1/-1"><label>VIN / serial / model #</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="fVin" placeholder="17-char VIN for auto lookup" style="flex:1">
+          <button onclick="lookupVin('f')" id="fVinBtn" style="background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius-sm);padding:0 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">Look up</button>
+        </div>
+        <div id="fVinStatus" style="font-size:12px;margin-top:4px;min-height:16px;color:var(--text2)"></div>
+      </div>
       <div class="field"><label>Type</label>
         <select id="fType">
           <option>Car / Truck</option>
@@ -230,6 +236,15 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
       </div>
     </div>
 
+    <div class="form-section">Model lookup (non-VIN equipment)</div>
+    <div class="field" style="margin-bottom:4px"><label>Enter make &amp; model to auto-fill specs</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="fModel" placeholder="e.g. John Deere X350, Bobcat S76, Polaris Ranger 1000" style="flex:1">
+        <button onclick="lookupModel('f')" style="background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius-sm);padding:0 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">Look up</button>
+      </div>
+      <div id="fModelStatus" style="font-size:12px;margin-top:4px;min-height:16px;color:var(--text2)"></div>
+    </div>
+
     <div class="form-section">Oil &amp; filter</div>
     <div class="field-row">
       <div class="field"><label>Oil type</label>
@@ -244,6 +259,7 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
           <option>SAE 30 Small Engine</option>
           <option>Other</option>
         </select>
+        <div id="fOilNote" style="font-size:11px;color:var(--green-text);margin-top:3px;min-height:14px"></div>
       </div>
       <div class="field"><label>Oil capacity (qts)</label><input type="number" id="fOilCap" inputmode="decimal" step="0.5" min="0" placeholder="e.g. 5"></div>
     </div>
@@ -287,7 +303,14 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 
       <div class="field"><label>Vehicle name / description *</label><input type="text" id="pName" placeholder="Required"></div>
       <div class="field-row">
-        <div class="field"><label>VIN / model #</label><input type="text" id="pVin"></div>
+        <div class="field">
+          <label>VIN / model #</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="pVin" placeholder="17-char VIN" style="flex:1">
+            <button onclick="lookupVin('p')" style="background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius-sm);padding:0 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">Look up</button>
+          </div>
+          <div id="pVinStatus" style="font-size:12px;margin-top:4px;min-height:16px;color:var(--text2)"></div>
+        </div>
         <div class="field"><label>Type</label>
           <select id="pType">
             <option>Car / Truck</option><option>Lawn mower</option><option>4-Wheeler / ATV</option>
@@ -310,6 +333,13 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
       <div class="field"><label>Filter part #</label><input type="text" id="pFilt"></div>
       <div class="field"><label>Belt size(s)</label><input type="text" id="pBelt"></div>
       <div class="field"><label>Wiper size(s)</label><input type="text" id="pWiper"></div>
+      <div class="field" style="grid-column:1/-1"><label>Or look up by make &amp; model</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="pModel" placeholder="e.g. Bobcat S76, JD X350" style="flex:1">
+          <button onclick="lookupModel('p')" style="background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius-sm);padding:0 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">Look up</button>
+        </div>
+        <div id="pModelStatus" style="font-size:12px;margin-top:4px;min-height:16px;color:var(--text2)"></div>
+      </div>
       <div class="field-row">
         <div class="field"><label>Current mi/hr</label><input type="number" id="pCur" inputmode="numeric" value="0"></div>
         <div class="field"><label>Change interval</label><input type="number" id="pInterval" inputmode="numeric" step="100"></div>
@@ -684,6 +714,95 @@ function saveFromPhoto() {
 
 function fileToBase64(file) {
   return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('fail')); r.readAsDataURL(file); });
+}
+
+async function lookupModel(prefix) {
+  const modelEl = document.getElementById(prefix+'Model');
+  const statusEl = document.getElementById(prefix+'ModelStatus');
+  const modelQuery = modelEl.value.trim();
+  if (!modelQuery) { statusEl.style.color='var(--red-text)'; statusEl.textContent='Please enter a make and model'; return; }
+  statusEl.style.color='var(--text2)'; statusEl.textContent='Looking up specs with AI…';
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: `You are a fleet maintenance expert. Look up the maintenance specs for this equipment: "${modelQuery}".
+Return ONLY a JSON object (no markdown, no backticks, no explanation) with these exact fields:
+{"name":"Full equipment name with year if known","type":"one of: Car / Truck | Lawn mower | 4-Wheeler / ATV | Side-by-side / UTV | Skid steer | Tractor | Trailer | Generator | Boat | Other","oilType":"exact oil specification e.g. SAE 30 Small Engine or 5W-30 Full Synthetic","oilCapacity":1.5,"filterPart":"OEM filter part number","beltSizes":"belt part numbers or sizes if applicable else empty string","wiperSizes":"wiper sizes if applicable else empty string","interval":50,"notes":"any important maintenance notes"}
+Use null for oilCapacity and interval if unknown. Be as accurate as possible based on known manufacturer specs.`
+        }]
+      })
+    });
+    const data = await resp.json();
+    const raw = (data.content||[]).map(b=>b.text||'').join('');
+    let p = {};
+    try { p = JSON.parse(raw.replace(/```[a-z]*/g,'').replace(/```/g,'').trim()); } catch(e) {}
+    if (p.name) document.getElementById(prefix+'Name').value = p.name;
+    if (p.type) {
+      const typeEl = document.getElementById(prefix==='f'?'fType':'pType');
+      if (typeEl) typeEl.value = p.type;
+    }
+    if (p.oilType) {
+      const oilEl = document.getElementById(prefix==='f'?'fOil':'pOil');
+      const oilOpts = Array.from(oilEl.options).map(o=>o.value);
+      if (oilOpts.includes(p.oilType)) oilEl.value = p.oilType;
+      else { const other = oilEl.querySelector('option[value="Other"]'); if(other) oilEl.value='Other'; }
+      if (prefix==='f') {
+        const oilNoteEl = document.getElementById('fOilNote');
+        if (oilNoteEl) oilNoteEl.textContent = p.oilType;
+      }
+    }
+    if (p.oilCapacity) document.getElementById(prefix+'OilCap').value = p.oilCapacity;
+    if (p.filterPart) document.getElementById(prefix+'Filt').value = p.filterPart;
+    if (p.beltSizes) document.getElementById(prefix+'Belt').value = p.beltSizes;
+    if (p.wiperSizes) document.getElementById(prefix+'Wiper').value = p.wiperSizes;
+    if (p.interval) document.getElementById(prefix+'Interval').value = p.interval;
+    if (p.notes && prefix==='f') document.getElementById('fNotes').value = p.notes;
+    statusEl.style.color='var(--green-text)';
+    statusEl.textContent = p.name ? `Found specs for ${p.name} — review and adjust as needed` : 'Specs filled in — please review and confirm';
+    showToast('Specs loaded!');
+  } catch(e) {
+    statusEl.style.color='var(--red-text)';
+    statusEl.textContent='Lookup failed — check connection or fill in manually';
+  }
+}
+
+async function lookupVin(prefix) {
+  const vinEl = document.getElementById(prefix+'Vin');
+  const statusEl = document.getElementById(prefix+'VinStatus');
+  const vin = vinEl.value.trim().toUpperCase();
+  if (vin.length !== 17) { statusEl.style.color='var(--red-text)'; statusEl.textContent='VIN must be 17 characters'; return; }
+  statusEl.style.color='var(--text2)'; statusEl.textContent='Looking up VIN…';
+  try {
+    const resp = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${vin}?format=json`);
+    const data = await resp.json();
+    const r = data.Results && data.Results[0];
+    if (!r || r.ErrorCode === '8') { statusEl.style.color='var(--red-text)'; statusEl.textContent='VIN not found — fill in manually'; return; }
+    const year = r.ModelYear||'';
+    const make = r.Make||'';
+    const model = r.Model||'';
+    const bodyClass = (r.BodyClass||'').toLowerCase();
+    const vType = (r.VehicleType||'').toLowerCase();
+    const name = [year, make, model].filter(Boolean).join(' ');
+    let type = 'Car / Truck';
+    if (bodyClass.includes('truck') || vType.includes('truck')) type = 'Car / Truck';
+    if (bodyClass.includes('trailer')) type = 'Trailer';
+    if (vType.includes('motorcycle') || vType.includes('atv')) type = '4-Wheeler / ATV';
+    if (name) { document.getElementById(prefix+'Name').value = name; }
+    if (prefix==='f') { document.getElementById('fType').value = type; }
+    else { document.getElementById('pType').value = type; }
+    statusEl.style.color='var(--green-text)';
+    statusEl.textContent=`Found: ${name||'Unknown vehicle'} — fill in remaining fields`;
+    showToast('VIN decoded!');
+  } catch(e) {
+    statusEl.style.color='var(--red-text)';
+    statusEl.textContent='Lookup failed — check connection and try again';
+  }
 }
 
 function exportCSV() {
