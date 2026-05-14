@@ -716,59 +716,115 @@ function fileToBase64(file) {
   return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('fail')); r.readAsDataURL(file); });
 }
 
-async function lookupModel(prefix) {
+function lookupModel(prefix) {
   const modelEl = document.getElementById(prefix+'Model');
   const statusEl = document.getElementById(prefix+'ModelStatus');
-  const modelQuery = modelEl.value.trim();
-  if (!modelQuery) { statusEl.style.color='var(--red-text)'; statusEl.textContent='Please enter a make and model'; return; }
-  statusEl.style.color='var(--text2)'; statusEl.textContent='Looking up specs with AI…';
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        messages: [{
-          role: 'user',
-          content: `You are a fleet maintenance expert. Look up the maintenance specs for this equipment: "${modelQuery}".
-Return ONLY a JSON object (no markdown, no backticks, no explanation) with these exact fields:
-{"name":"Full equipment name with year if known","type":"one of: Car / Truck | Lawn mower | 4-Wheeler / ATV | Side-by-side / UTV | Skid steer | Tractor | Trailer | Generator | Boat | Other","oilType":"exact oil specification e.g. SAE 30 Small Engine or 5W-30 Full Synthetic","oilCapacity":1.5,"filterPart":"OEM filter part number","beltSizes":"belt part numbers or sizes if applicable else empty string","wiperSizes":"wiper sizes if applicable else empty string","interval":50,"notes":"any important maintenance notes"}
-Use null for oilCapacity and interval if unknown. Be as accurate as possible based on known manufacturer specs.`
-        }]
-      })
-    });
-    const data = await resp.json();
-    const raw = (data.content||[]).map(b=>b.text||'').join('');
-    let p = {};
-    try { p = JSON.parse(raw.replace(/```[a-z]*/g,'').replace(/```/g,'').trim()); } catch(e) {}
-    if (p.name) document.getElementById(prefix+'Name').value = p.name;
-    if (p.type) {
-      const typeEl = document.getElementById(prefix==='f'?'fType':'pType');
-      if (typeEl) typeEl.value = p.type;
+  const q = modelEl.value.trim().toLowerCase();
+  if (!q) { statusEl.style.color='var(--red-text)'; statusEl.textContent='Please enter a make and model'; return; }
+  statusEl.style.color='var(--text2)'; statusEl.textContent='Searching specs…';
+
+  // Built-in equipment spec database
+  const db = [
+    // John Deere Mowers
+    {keys:['john deere x350','jd x350'],name:'John Deere X350',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'AM125424',beltSizes:'GX20571 deck, GX20006 drive',interval:50},
+    {keys:['john deere x300','jd x300'],name:'John Deere X300',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'AM125424',beltSizes:'GX20072 deck',interval:50},
+    {keys:['john deere x500','jd x500'],name:'John Deere X500',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'AM125424',beltSizes:'M154958 deck',interval:100},
+    {keys:['john deere x700','jd x700'],name:'John Deere X700',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'AM125424',beltSizes:'M154958',interval:100},
+    {keys:['john deere z355','jd z355','z355'],name:'John Deere Z355',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'AM125424',beltSizes:'M154960',interval:100},
+    {keys:['john deere z530','jd z530','z530'],name:'John Deere Z530',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'AM125424',beltSizes:'M154960',interval:100},
+    {keys:['john deere d130','jd d130'],name:'John Deere D130',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'AM125424',beltSizes:'GX20072',interval:50},
+    {keys:['john deere e130','jd e130'],name:'John Deere E130',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'AM125424',beltSizes:'GX20072',interval:50},
+    // Husqvarna
+    {keys:['husqvarna yth24v48','yth24v48'],name:'Husqvarna YTH24V48',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'591334',beltSizes:'532174368 deck',interval:50},
+    {keys:['husqvarna mz61','mz61'],name:'Husqvarna MZ61',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'531307390',beltSizes:'539101117',interval:100},
+    {keys:['husqvarna z254','z254'],name:'Husqvarna Z254',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'531307390',beltSizes:'539101117',interval:100},
+    // Cub Cadet
+    {keys:['cub cadet xt1','xt1 lt42','xt1 lt46'],name:'Cub Cadet XT1',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:1.5,filterPart:'490-201-0017',beltSizes:'954-04290 deck',interval:50},
+    {keys:['cub cadet xt2','xt2 lx42','xt2 lx46'],name:'Cub Cadet XT2',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:1.5,filterPart:'490-201-0017',beltSizes:'954-04290',interval:50},
+    {keys:['cub cadet ultima zt1','zt1 42','zt1 50'],name:'Cub Cadet Ultima ZT1',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'490-201-0017',beltSizes:'954-04290',interval:100},
+    // Toro
+    {keys:['toro timecutter','toro mx5060','toro ss5000'],name:'Toro TimeCutter',type:'Lawn mower',oilType:'10W-30 Conventional',oilCapacity:2,filterPart:'120-4276',beltSizes:'108-3855 deck',interval:100},
+    {keys:['toro recycler 22','toro 22'],name:'Toro Recycler 22',type:'Lawn mower',oilType:'SAE 30 Small Engine',oilCapacity:0.6,filterPart:'N/A - no filter',beltSizes:'N/A - walk behind',interval:25},
+    // Polaris
+    {keys:['polaris ranger 1000','ranger 1000'],name:'Polaris Ranger 1000',type:'Side-by-side / UTV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2521303',beltSizes:'3211212',interval:100},
+    {keys:['polaris ranger 570','ranger 570'],name:'Polaris Ranger 570',type:'Side-by-side / UTV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2540086',beltSizes:'3211180',interval:100},
+    {keys:['polaris ranger 900','ranger 900'],name:'Polaris Ranger 900',type:'Side-by-side / UTV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2521303',beltSizes:'3211212',interval:100},
+    {keys:['polaris rzr 900','rzr 900'],name:'Polaris RZR 900',type:'Side-by-side / UTV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2521303',beltSizes:'3211180',interval:100},
+    {keys:['polaris rzr 1000','rzr 1000','rzr xp 1000'],name:'Polaris RZR XP 1000',type:'Side-by-side / UTV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2521303',beltSizes:'3211212',interval:100},
+    {keys:['polaris sportsman 450','sportsman 450'],name:'Polaris Sportsman 450',type:'4-Wheeler / ATV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2540086',interval:100},
+    {keys:['polaris sportsman 570','sportsman 570'],name:'Polaris Sportsman 570',type:'4-Wheeler / ATV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2540086',interval:100},
+    {keys:['polaris sportsman 850','sportsman 850'],name:'Polaris Sportsman 850',type:'4-Wheeler / ATV',oilType:'0W-40 Full Synthetic',oilCapacity:2,filterPart:'2521303',interval:100},
+    // Can-Am
+    {keys:['can-am outlander 450','can am outlander 450'],name:'Can-Am Outlander 450',type:'4-Wheeler / ATV',oilType:'5W-40 Full Synthetic',oilCapacity:2.2,filterPart:'420256188',interval:100},
+    {keys:['can-am outlander 650','can am outlander 650'],name:'Can-Am Outlander 650',type:'4-Wheeler / ATV',oilType:'5W-40 Full Synthetic',oilCapacity:2.9,filterPart:'420956741',interval:100},
+    {keys:['can-am outlander 850','can am outlander 850'],name:'Can-Am Outlander 850',type:'4-Wheeler / ATV',oilType:'5W-40 Full Synthetic',oilCapacity:3.2,filterPart:'420956741',interval:100},
+    {keys:['can-am defender','can am defender'],name:'Can-Am Defender',type:'Side-by-side / UTV',oilType:'5W-40 Full Synthetic',oilCapacity:3.2,filterPart:'420956741',interval:100},
+    {keys:['can-am maverick','can am maverick'],name:'Can-Am Maverick',type:'Side-by-side / UTV',oilType:'5W-40 Full Synthetic',oilCapacity:3.2,filterPart:'420956741',interval:100},
+    // Bobcat Skid Steers
+    {keys:['bobcat s70','s70 skid'],name:'Bobcat S70',type:'Skid steer',oilType:'10W-30 Conventional',oilCapacity:5.5,filterPart:'6675518',interval:250},
+    {keys:['bobcat s76','s76 skid'],name:'Bobcat S76',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:11,filterPart:'6692305',interval:250},
+    {keys:['bobcat s550','s550'],name:'Bobcat S550',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10,filterPart:'6692305',interval:250},
+    {keys:['bobcat s570','s570'],name:'Bobcat S570',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10,filterPart:'6692305',interval:250},
+    {keys:['bobcat s590','s590'],name:'Bobcat S590',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10,filterPart:'6692305',interval:250},
+    {keys:['bobcat s650','s650'],name:'Bobcat S650',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:11,filterPart:'6692305',interval:250},
+    {keys:['bobcat s740','s740'],name:'Bobcat S740',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:11,filterPart:'6692305',interval:250},
+    {keys:['bobcat s770','s770'],name:'Bobcat S770',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:11,filterPart:'6692305',interval:250},
+    {keys:['bobcat t590','t590'],name:'Bobcat T590',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10,filterPart:'6692305',interval:250},
+    {keys:['bobcat t650','t650'],name:'Bobcat T650',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:11,filterPart:'6692305',interval:250},
+    // Caterpillar
+    {keys:['cat 246','cat 246d','caterpillar 246'],name:'Cat 246D Skid Steer',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10.3,filterPart:'1R-0739',interval:250},
+    {keys:['cat 262','cat 262d','caterpillar 262'],name:'Cat 262D Skid Steer',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10.3,filterPart:'1R-0739',interval:250},
+    {keys:['cat 272','cat 272d','caterpillar 272'],name:'Cat 272D Skid Steer',type:'Skid steer',oilType:'15W-40 Diesel',oilCapacity:10.3,filterPart:'1R-0739',interval:250},
+    // John Deere Tractors
+    {keys:['john deere 1025r','jd 1025r','1025r'],name:'John Deere 1025R',type:'Tractor',oilType:'10W-30 Conventional',oilCapacity:2.7,filterPart:'AM125424',interval:200},
+    {keys:['john deere 2025r','jd 2025r','2025r'],name:'John Deere 2025R',type:'Tractor',oilType:'10W-30 Conventional',oilCapacity:3.2,filterPart:'AM125424',interval:200},
+    {keys:['john deere 3025e','jd 3025e','3025e'],name:'John Deere 3025E',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:4.2,filterPart:'RE504836',interval:200},
+    {keys:['john deere 3032e','jd 3032e','3032e'],name:'John Deere 3032E',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:4.2,filterPart:'RE504836',interval:200},
+    {keys:['john deere 3033r','jd 3033r','3033r'],name:'John Deere 3033R',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:4.2,filterPart:'RE504836',interval:200},
+    {keys:['john deere 5075e','jd 5075e','5075e'],name:'John Deere 5075E',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:8,filterPart:'RE504836',interval:250},
+    {keys:['john deere 5100e','jd 5100e','5100e'],name:'John Deere 5100E',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:8,filterPart:'RE504836',interval:250},
+    // Kubota Tractors
+    {keys:['kubota bx23s','bx23s'],name:'Kubota BX23S',type:'Tractor',oilType:'10W-30 Conventional',oilCapacity:2.6,filterPart:'HH1C0-32430',interval:200},
+    {keys:['kubota b2601','b2601'],name:'Kubota B2601',type:'Tractor',oilType:'10W-30 Conventional',oilCapacity:3.2,filterPart:'HH1C0-32430',interval:200},
+    {keys:['kubota l3301','l3301'],name:'Kubota L3301',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:5.3,filterPart:'HH1C0-32430',interval:200},
+    {keys:['kubota l3901','l3901'],name:'Kubota L3901',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:5.3,filterPart:'HH1C0-32430',interval:200},
+    {keys:['kubota m7060','m7060'],name:'Kubota M7060',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:10.6,filterPart:'HH1C0-32430',interval:250},
+    // New Holland
+    {keys:['new holland boomer 47','boomer 47'],name:'New Holland Boomer 47',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:6,filterPart:'84475861',interval:200},
+    {keys:['new holland workmaster 75','workmaster 75'],name:'New Holland Workmaster 75',type:'Tractor',oilType:'15W-40 Diesel',oilCapacity:8,filterPart:'84475861',interval:250},
+    // Generators
+    {keys:['generac gp3500','gp3500'],name:'Generac GP3500',type:'Generator',oilType:'SAE 30 Small Engine',oilCapacity:0.6,filterPart:'No filter',interval:100},
+    {keys:['generac gp5500','gp5500'],name:'Generac GP5500',type:'Generator',oilType:'10W-30 Conventional',oilCapacity:1.1,filterPart:'070185E',interval:100},
+    {keys:['generac gp7500','gp7500'],name:'Generac GP7500',type:'Generator',oilType:'10W-30 Conventional',oilCapacity:1.1,filterPart:'070185E',interval:100},
+    {keys:['generac guardian','generac 22kw','generac 20kw'],name:'Generac Guardian Standby',type:'Generator',oilType:'5W-30 Full Synthetic',oilCapacity:1.7,filterPart:'070185E',interval:200},
+    {keys:['honda eu2200','eu2200i'],name:'Honda EU2200i Generator',type:'Generator',oilType:'10W-30 Conventional',oilCapacity:0.42,filterPart:'No filter',interval:100},
+    {keys:['honda eu3000','eu3000is'],name:'Honda EU3000is Generator',type:'Generator',oilType:'10W-30 Conventional',oilCapacity:0.58,filterPart:'15400-ZJ1-004',interval:100},
+  ];
+
+  const match = db.find(item => item.keys.some(k => q.includes(k) || k.includes(q)));
+
+  if (match) {
+    document.getElementById(prefix+'Name').value = match.name;
+    const typeEl = document.getElementById(prefix==='f'?'fType':'pType');
+    if (typeEl) typeEl.value = match.type;
+    const oilEl = document.getElementById(prefix==='f'?'fOil':'pOil');
+    if (oilEl) {
+      const opts = Array.from(oilEl.options).map(o=>o.value);
+      oilEl.value = opts.includes(match.oilType) ? match.oilType : 'Other';
+      const noteEl = document.getElementById('fOilNote');
+      if (noteEl) noteEl.textContent = match.oilType;
     }
-    if (p.oilType) {
-      const oilEl = document.getElementById(prefix==='f'?'fOil':'pOil');
-      const oilOpts = Array.from(oilEl.options).map(o=>o.value);
-      if (oilOpts.includes(p.oilType)) oilEl.value = p.oilType;
-      else { const other = oilEl.querySelector('option[value="Other"]'); if(other) oilEl.value='Other'; }
-      if (prefix==='f') {
-        const oilNoteEl = document.getElementById('fOilNote');
-        if (oilNoteEl) oilNoteEl.textContent = p.oilType;
-      }
-    }
-    if (p.oilCapacity) document.getElementById(prefix+'OilCap').value = p.oilCapacity;
-    if (p.filterPart) document.getElementById(prefix+'Filt').value = p.filterPart;
-    if (p.beltSizes) document.getElementById(prefix+'Belt').value = p.beltSizes;
-    if (p.wiperSizes) document.getElementById(prefix+'Wiper').value = p.wiperSizes;
-    if (p.interval) document.getElementById(prefix+'Interval').value = p.interval;
-    if (p.notes && prefix==='f') document.getElementById('fNotes').value = p.notes;
+    if (match.oilCapacity) document.getElementById(prefix+'OilCap').value = match.oilCapacity;
+    if (match.filterPart) document.getElementById(prefix+'Filt').value = match.filterPart;
+    if (match.beltSizes) document.getElementById(prefix+'Belt').value = match.beltSizes;
+    if (match.wiperSizes) document.getElementById(prefix+'Wiper').value = match.wiperSizes||'';
+    if (match.interval) document.getElementById(prefix+'Interval').value = match.interval;
     statusEl.style.color='var(--green-text)';
-    statusEl.textContent = p.name ? `Found specs for ${p.name} — review and adjust as needed` : 'Specs filled in — please review and confirm';
+    statusEl.textContent = 'Found! Review the filled specs and adjust if needed.';
     showToast('Specs loaded!');
-  } catch(e) {
-    statusEl.style.color='var(--red-text)';
-    statusEl.textContent='Lookup failed — check connection or fill in manually';
+  } else {
+    statusEl.style.color='var(--amber-text)';
+    statusEl.textContent = 'Not in database — try a different spelling, or fill in manually. More models added regularly!';
   }
 }
 
