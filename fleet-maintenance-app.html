@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Fleet Maintenance">
+<meta name="theme-color" content="#1A2744">
+<title>Fleet Maintenance Manager</title>
+<style>
+:root {
+  --navy:#1A2744;--blue:#2E4A7A;--accent:#4472C4;
+  --red:#C00000;--amber:#E07B00;--green:#215732;
+  --bg:#F4F5F7;--surface:#FFFFFF;--surface2:#F0F2F5;
+  --border:rgba(0,0,0,0.12);--text:#1A1A1A;--text2:#5A5A6A;--text3:#9A9AAA;
+  --diesel:#FFF9C4;--gas:#E8F5E9;--small:#FFCCBC;--natgas:#E3F2FD;
+  --radius:12px;--radius-sm:8px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --safe-top:env(safe-area-inset-top,0px);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#0F1117;--surface:#1C1F2A;--surface2:#252838;
+    --border:rgba(255,255,255,0.10);--text:#F0F0F8;--text2:#9898B0;--text3:#5A5A70;
+    --diesel:#3A3510;--gas:#0F2A14;--small:#3A1A08;--natgas:#0A1F3A;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+#app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
+
+/* HEADER */
+.hdr{background:var(--navy);padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:18px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.hdr-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:1px}
+.hdr-btns{display:flex;gap:8px}
+.hdr-btn{background:rgba(255,255,255,.12);border:none;border-radius:var(--radius-sm);padding:7px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap}
+.hdr-btn:active{opacity:.7}
+.hdr-btn.accent{background:var(--accent)}
+
+/* TABS */
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1;min-width:80px;padding:10px 8px;font-size:12px;font-weight:600;color:var(--text2);text-align:center;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.tab.active{color:var(--navy);border-bottom-color:var(--navy)}
+@media(prefers-color-scheme:dark){.tab.active{color:var(--accent);border-bottom-color:var(--accent)}}
+
+/* SUMMARY STRIP */
+.summary{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;flex-shrink:0;scrollbar-width:none;background:var(--bg)}
+.summary::-webkit-scrollbar{display:none}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 14px;white-space:nowrap;flex-shrink:0;text-align:center}
+.stat .v{font-size:16px;font-weight:700;line-height:1.1}
+.stat .l{font-size:10px;color:var(--text2)}
+.stat.red .v{color:var(--red)}
+.stat.amber .v{color:var(--amber)}
+.stat.green .v{color:var(--green)}
+
+/* SEARCH */
+.search-bar{margin:0 16px 10px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px}
+.search-bar input{flex:1;background:none;border:none;font-size:14px;color:var(--text);outline:none}
+.search-bar svg{flex-shrink:0;color:var(--text3)}
+
+/* SCROLL AREA */
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 120px}
+
+/* VEHICLE CARD */
+.vcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer}
+.vcard:active{opacity:.85}
+.vcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.vcard-name{font-size:14px;font-weight:700;line-height:1.3;flex:1}
+.vcard-serial{font-size:10px;color:var(--text2);font-family:monospace;margin-top:2px}
+.vcard-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;flex-shrink:0}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.b-diesel{background:var(--diesel);color:#5A4800}
+.b-gas{background:var(--gas);color:#1B4D1E}
+.b-small{background:var(--small);color:#6D2A00}
+.b-natgas{background:var(--natgas);color:#0D3A6A}
+.b-ok{background:#E8F5E9;color:var(--green)}
+.b-due{background:#FFF3E0;color:var(--amber)}
+.b-over{background:#FFEBEE;color:var(--red)}
+.b-na{background:var(--surface2);color:var(--text3)}
+.vcard-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+.vf label{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)}
+.vf span{font-size:12px;color:var(--text);display:block;margin-top:1px}
+.vcard-hr{height:1px;background:var(--border);margin:10px 0}
+.vcard-actions{display:flex;gap:8px}
+.va-btn{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 4px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+.va-btn:active{opacity:.7}
+.va-btn.primary{background:var(--navy);color:#fff;border-color:transparent}
+.va-btn.danger{background:#FFEBEE;color:var(--red);border-color:transparent}
+
+/* LOG CARDS */
+.log-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px}
+.log-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.log-vehicle{font-size:13px;font-weight:700}
+.log-date{font-size:11px;color:var(--text2)}
+.log-type{font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px}
+.log-detail{font-size:11px;color:var(--text2);line-height:1.5}
+.log-cost{font-size:12px;font-weight:600;color:var(--green);margin-top:4px}
+.log-tech{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* BOTTOM SHEET */
+.sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60}
+.sheet-bg.open{display:block}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:61;max-height:94vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1)}
+.sheet.open{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0}
+.sheet-hdr{padding:12px 20px 8px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid var(--border)}
+.sheet-title{font-size:16px;font-weight:700}
+.sheet-close{width:28px;height:28px;border-radius:14px;background:var(--surface2);border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 20px 20px;flex:1}
+
+/* DETAIL SHEET */
+.detail-section{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.detail-section:first-child{margin-top:0}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.detail-field{background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px}
+.detail-field label{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);display:block;margin-bottom:3px}
+.detail-field span{font-size:12px;color:var(--text);font-weight:500}
+.detail-field.full{grid-column:1/-1}
+.detail-field.warn span{color:var(--red);font-weight:700}
+.detail-field.ok span{color:var(--green)}
+.hrs-input{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;color:var(--text);font-family:inherit;-webkit-appearance:none}
+.hrs-input:focus{outline:none;border-color:var(--accent)}
+.prog-bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:4px 0 8px}
+.prog-fill{height:100%;border-radius:4px;transition:width .3s}
+
+/* FORM */
+.form-section{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:14px 0 8px}
+.form-section:first-child{margin-top:0}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:15px;color:var(--text);font-family:inherit;-webkit-appearance:none;appearance:none}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field textarea{resize:none;height:80px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-primary{width:100%;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);padding:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px}
+.btn-primary:active{opacity:.8}
+.btn-danger{width:100%;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:8px}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(20px + var(--safe-bottom));right:20px;z-index:50;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.fab-main{width:56px;height:56px;border-radius:28px;background:var(--navy);color:#fff;border:none;font-size:26px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.fab-main:active{transform:scale(.93)}
+.fab-row{display:flex;align-items:center;gap:10px}
+.fab-mini{width:44px;height:44px;border-radius:22px;background:var(--surface);border:1.5px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center}
+.fab-mini:active{opacity:.7}
+.fab-lbl{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.12);white-space:nowrap;color:var(--text)}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 24px;color:var(--text2)}
+.empty .icon{font-size:44px;display:block;margin-bottom:12px}
+.empty h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px}
+.empty p{font-size:13px;line-height:1.6}
+
+/* TOAST */
+.toast{position:fixed;top:calc(12px + var(--safe-top));left:50%;transform:translateX(-50%) translateY(-70px);background:var(--navy);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:100;transition:transform .3s;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* FILTER ROW */
+.filter-row{display:flex;gap:6px;padding:0 16px 10px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.filter-chip.active{background:var(--navy);border-color:var(--navy);color:#fff}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Fleet Maintenance</div>
+      <div class="hdr-sub" id="hdr-sub">Loading...</div>
+    </div>
+    <div class="hdr-btns">
+      <button class="hdr-btn" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="hdr-btn accent" onclick="openLogSheet()">+ Log Service</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="setTab('fleet',this)">Fleet</div>
+    <div class="tab" onclick="setTab('schedule',this)">Schedule</div>
+    <div class="tab" onclick="setTab('log',this)">Service Log</div>
+    <div class="tab" onclick="setTab('parts',this)">Parts List</div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="filter-row" id="filter-row" style="display:none">
+    <div class="filter-chip active" onclick="setFilter('',this)">All</div>
+    <div class="filter-chip" onclick="setFilter('Car/Truck',this)">Cars/Trucks</div>
+    <div class="filter-chip" onclick="setFilter('UTV',this)">UTVs</div>
+    <div class="filter-chip" onclick="setFilter('ATV',this)">ATVs</div>
+    <div class="filter-chip" onclick="setFilter('Lawn mower',this)">Mowers</div>
+    <div class="filter-chip" onclick="setFilter('Skid steer',this)">Skid Steer</div>
+    <div class="filter-chip" onclick="setFilter('Tractor',this)">Tractor</div>
+    <div class="filter-chip" onclick="setFilter('Generator',this)">Generator</div>
+    <div class="filter-chip" onclick="setFilter('Other',this)">Other</div>
+  </div>
+
+  <div class="search-bar" id="search-bar" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="search-input" placeholder="Search vehicles..." oninput="render()">
+  </div>
+
+  <div class="scroll" id="scroll-area"></div>
+</div>
+
+<div class="fab" id="fab" style="display:none">
+  <div class="fab-row" id="fab-export-row" style="display:none">
+    <div class="fab-lbl">Export CSV</div>
+    <div class="fab-mini" onclick="exportCSV()">⬇</div>
+  </div>
+  <div class="fab-main" id="fab-main" onclick="toggleFab()">+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="sheet-bg" id="sheet-bg" onclick="closeSheets()"></div>
+
+<!-- DETAIL SHEET -->
+<div class="sheet" id="detail-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hdr">
+    <div class="sheet-title" id="detail-title">Vehicle</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body" id="detail-body"></div>
+</div>
+
+<!-- UPDATE HOURS SHEET -->
+<div class="sheet" id="hrs-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hdr">
+    <div class="sheet-title" id="hrs-title">Update Hours / Miles</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label>Current Mileage or Hours</label>
+      <input type="number" id="hrs-input" class="hrs-input" inputmode="numeric" min="0" placeholder="Enter current reading">
+    </div>
+    <div class="field">
+      <label>Last Oil Change (hrs/mi)</label>
+      <input type="number" id="last-oil-input" class="hrs-input" inputmode="numeric" min="0" placeholder="Enter last oil change reading">
+    </div>
+    <div class="field">
+      <label>Last Hydraulic Fluid Change (hrs) — if applicable</label>
+      <input type="number" id="last-hyd-input" class="hrs-input" inputmode="numeric" min="0" placeholder="N/A if no hydraulic system">
+    </div>
+    <button class="btn-primary" onclick="saveHours()">Save</button>
+  </div>
+</div>
+
+<!-- LOG SERVICE SHEET -->
+<div class="sheet" id="log-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hdr">
+    <div class="sheet-title">Log Service</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="form-section">Vehicle & Date</div>
+    <div class="field">
+      <label>Vehicle *</label>
+      <select id="log-vehicle"></select>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Date *</label>
+        <input type="date" id="log-date">
+      </div>
+      <div class="field">
+        <label>Hrs / Mileage</label>
+        <input type="number" id="log-hrs" inputmode="numeric" placeholder="Current reading">
+      </div>
+    </div>
+    <div class="form-section">Service Details</div>
+    <div class="field">
+      <label>Service Type *</label>
+      <select id="log-type">
+        <option>Oil Change</option>
+        <option>Hydraulic Fluid Change</option>
+        <option>Air Filter Replacement</option>
+        <option>Cabin Filter Replacement</option>
+        <option>Spark Plug Replacement</option>
+        <option>Belt Replacement</option>
+        <option>Fuel Filter Replacement</option>
+        <option>Transmission Fluid Change</option>
+        <option>Differential Fluid Change</option>
+        <option>Battery Replacement</option>
+        <option>Wiper Blade Replacement</option>
+        <option>Tire Rotation / Replacement</option>
+        <option>Full Service (Oil + Filter + Air)</option>
+        <option>Hydraulic Filter Replacement</option>
+        <option>Greasing / Lubrication</option>
+        <option>Inspection</option>
+        <option>Repair</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Parts Used / Part Numbers</label>
+      <input type="text" id="log-parts" placeholder="e.g. ACDelco PF64, 5qt 0W-20">
+    </div>
+    <div class="field">
+      <label>Notes / Observations</label>
+      <textarea id="log-notes" placeholder="Any observations, conditions, issues found..."></textarea>
+    </div>
+    <div class="form-section">Technician & Cost</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Performed By</label>
+        <select id="log-tech">
+          <option>Captain Rob</option>
+          <option>Other Technician</option>
+          <option>Shop / Dealer</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Parts Cost ($)</label>
+        <input type="number" id="log-cost" inputmode="decimal" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <button class="btn-primary" onclick="saveLog()">Save Service Record</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// FLEET DATA — 25 VEHICLES — ALL VERIFIED SPECS
+// ═══════════════════════════════════════════════════════
+const VEHICLES = [
+{id:1,name:"2017 Cadillac Escalade 6.2L V8",type:"Car/Truck",serial:"1GYS4KKJ6HR783745",engine:"GM 6.2L V8",fuel:"Gas",
+ oilType:"0W-20 Full Synthetic (Dexos 1)",oilQty:8,oilFilter:"ACDelco PF64",oilInterval:7500,
+ airOuter:"ACDelco A3205C",airInner:"N/A",cabinFilter:"GM 23117804",
+ sparkPlug:"ACDelco 41-162 (iridium) — 8 plugs",belts:"Serpentine belt (varies by config)",
+ transFl:"Dexron VI ATF",transInt:50000,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"75W-90 Synthetic",rearDiff:"75W-90 Synthetic",
+ battery:"Group 78 / 730+ CCA",wipers:'22" driver / 22" passenger',
+ notes:"Dexron VI ONLY for trans. Rotate tires every 7,500 mi. Rear diff every 50k mi."},
+
+{id:2,name:"2015 Cadillac Escalade ESV 6.2L V8",type:"Car/Truck",serial:"3GYFNDE36FS610261",engine:"GM 6.2L V8",fuel:"Gas",
+ oilType:"0W-20 Full Synthetic (Dexos 1)",oilQty:8,oilFilter:"ACDelco PF64",oilInterval:7500,
+ airOuter:"ACDelco A3205C",airInner:"N/A",cabinFilter:"GM 23117804",
+ sparkPlug:"ACDelco 41-162 (iridium) — 8 plugs",belts:"Serpentine belt (varies)",
+ transFl:"Dexron VI ATF",transInt:50000,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"75W-90 Synthetic",rearDiff:"75W-90 Synthetic",
+ battery:"Group 78 / 730+ CCA",wipers:'22" driver / 22" passenger',
+ notes:"Same as 2017 Escalade — PF64 filter, 8 qts 0W-20."},
+
+{id:3,name:"2010 Cadillac Escalade ESV 6.2L V8",type:"Car/Truck",serial:"1GYUCJEF6AR291879",engine:"GM 6.2L V8",fuel:"Gas",
+ oilType:"5W-30 Full Synthetic (Dexos 1)",oilQty:6,oilFilter:"ACDelco PF48E",oilInterval:5000,
+ airOuter:"ACDelco A3205C",airInner:"N/A",cabinFilter:"GM 15869728",
+ sparkPlug:"ACDelco 41-101 (iridium) — 8 plugs",belts:"Serpentine belt (varies)",
+ transFl:"Dexron VI ATF",transInt:50000,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"75W-90 Synthetic",rearDiff:"75W-90 Synthetic",
+ battery:"Group 78 / 730+ CCA",wipers:'22" driver / 22" passenger',
+ notes:"⚠ DIFFERENT from 2015/2017 — PF48E filter, 6 qts (NOT 8), Dexos 1 required."},
+
+{id:4,name:"2011 Cadillac Escalade ESV 6.2L V8",type:"Car/Truck",serial:"3GYT4NEF0BG142398",engine:"GM 6.2L V8",fuel:"Gas",
+ oilType:"5W-30 Full Synthetic (Dexos 1)",oilQty:6,oilFilter:"ACDelco PF48E",oilInterval:5000,
+ airOuter:"ACDelco A3205C",airInner:"N/A",cabinFilter:"GM 15869728",
+ sparkPlug:"ACDelco 41-101 (iridium) — 8 plugs",belts:"Serpentine belt (varies)",
+ transFl:"Dexron VI ATF",transInt:50000,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"75W-90 Synthetic",rearDiff:"75W-90 Synthetic",
+ battery:"Group 78 / 730+ CCA",wipers:'22" driver / 22" passenger',
+ notes:"⚠ Same as 2010 — PF48E, 6 qts, Dexos 1. NOT same as 2015/2017."},
+
+{id:5,name:"2014 Ford F-350 Super Duty 6.7L Diesel",type:"Car/Truck",serial:"1FT8W3DT2EEB05446",engine:"Ford 6.7L Power Stroke Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (Ford WSS-M2C171-F1)",oilQty:13,oilFilter:"Motorcraft FL-2051S",oilInterval:7500,
+ airOuter:"Motorcraft FA-1972",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"N/A — Diesel engine",belts:"Serpentine: 6PK2215",
+ transFl:"Motorcraft XT-8-QAW Mercon LV",transInt:150000,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"SAE 75W-90 Synthetic",rearDiff:"SAE 75W-90 Synthetic",
+ battery:"Group 65 / 750+ CCA",wipers:'22" driver / 22" passenger',
+ notes:"⚠ CRITICAL: MUST meet Ford WSS-M2C171-F1. 13 qts WITH filter. Fuel filter: Motorcraft FD-4622 every 15k mi. Heavy towing: reduce to 5k mi interval."},
+
+{id:6,name:"Kubota RTV-X1100C S/N 33698 (2016)",type:"UTV",serial:"A5KC2GDBTHG033698",engine:"Kubota D1105 3-cyl Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (API CF or better)",oilQty:3.6,oilFilter:"Kubota HH150-32094",oilInterval:200,
+ airOuter:"Kubota 1G319-11210",airInner:"Kubota 1G319-11212",cabinFilter:"N/A",
+ sparkPlug:"N/A — Diesel",belts:"Drive belt: K5651-17150",
+ transFl:"Kubota Super UDT2 (shared trans+hyd)",transInt:200,
+ hydFl:"Kubota Super UDT2",hydFilter:"Kubota HHK32-16770",hydInt:200,
+ frontDiff:"Kubota Super UDT2",rearDiff:"Kubota Super UDT2",
+ battery:"Group U1R / 300+ CCA",wipers:"N/A",
+ notes:"⚠ D1105 IS DIESEL. Trans+Hyd share Super UDT2. Fuel filter: 6A320-59930. Hyd filter HHK32-16770 every 200 hrs."},
+
+{id:7,name:"Kubota RTV-X1100C S/N 47886 (2018)",type:"UTV",serial:"A5KC2GDBJKG047886",engine:"Kubota D1105 3-cyl Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (API CF or better)",oilQty:3.6,oilFilter:"Kubota HH150-32094",oilInterval:200,
+ airOuter:"Kubota 1G319-11210",airInner:"Kubota 1G319-11212",cabinFilter:"N/A",
+ sparkPlug:"N/A — Diesel",belts:"Drive belt: K5651-17150",
+ transFl:"Kubota Super UDT2 (shared trans+hyd)",transInt:200,
+ hydFl:"Kubota Super UDT2",hydFilter:"Kubota HHK32-16770",hydInt:200,
+ frontDiff:"Kubota Super UDT2",rearDiff:"Kubota Super UDT2",
+ battery:"Group U1R / 300+ CCA",wipers:"N/A",
+ notes:"Identical specs to S/N 33698."},
+
+{id:8,name:"Kubota RTV-X1100C S/N 14758 (2023)",type:"UTV",serial:"A5KC2GDBPEG014758",engine:"Kubota D1105 3-cyl Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (API CF or better)",oilQty:3.6,oilFilter:"Kubota HH150-32094",oilInterval:200,
+ airOuter:"Kubota 1G319-11210",airInner:"Kubota 1G319-11212",cabinFilter:"N/A",
+ sparkPlug:"N/A — Diesel",belts:"Drive belt: K5651-17150",
+ transFl:"Kubota Super UDT2 (shared trans+hyd)",transInt:200,
+ hydFl:"Kubota Super UDT2",hydFilter:"Kubota HHK32-16770",hydInt:200,
+ frontDiff:"Kubota Super UDT2",rearDiff:"Kubota Super UDT2",
+ battery:"Group U1R / 300+ CCA",wipers:"N/A",
+ notes:"Newest of three X1100Cs. Identical specs. Track hours carefully."},
+
+{id:9,name:"Yardmax Tiller — B&S CR950",type:"Other",serial:"SN: 18090810111920",engine:"B&S CR950 208cc OHV",fuel:"Gas (small engine)",
+ oilType:"SAE 30 (>40°F) / 10W-30 (<40°F)",oilQty:0.6,oilFilter:"NO FILTER — splash lube",oilInterval:25,
+ airOuter:"B&S 491588S",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"Champion RC12YC",belts:"N/A",
+ transFl:"N/A",transInt:null,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"N/A",wipers:"N/A",
+ notes:"⚠ NO oil filter. ONLY 0.6 qt total — overfilling damages engine. Check BEFORE every use. Change every 25 hrs or once per season."},
+
+{id:10,name:"2021 Can-Am Outlander 650 AXi",type:"ATV",serial:"3JBLWAJ42MJ000656",engine:"Rotax 650cc V-Twin",fuel:"Gas",
+ oilType:"5W-40 Full Synthetic (JASO MA2 required)",oilQty:2.1,oilFilter:"Can-Am 420956741 / Hiflo HF152",oilInterval:100,
+ airOuter:"Can-Am 707800385",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK DCPR8E — 2 plugs",belts:"N/A (chain/gear drive)",
+ transFl:"Can-Am AGL Gearcase Lubricant",transInt:200,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"75W-90 GL-5",rearDiff:"75W-90 GL-5",
+ battery:"Group YTX14-BS / 200+ CCA",wipers:"N/A",
+ notes:"⚠ CRITICAL: JASO MA2 required — standard car oil destroys wet clutch. Front/rear diff: 75W-90 GL-5 every 100 hrs."},
+
+{id:11,name:"2020 Polaris Ranger 1000",type:"UTV",serial:"SN: 1206181002137",engine:"Polaris ProStar 999cc",fuel:"Gas",
+ oilType:"0W-40 Full Synthetic (Polaris PS-4)",oilQty:2.5,oilFilter:"Polaris 2540086",oilInterval:100,
+ airOuter:"Polaris 1253052",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK LZKAR6AP-11",belts:"Drive belt: Polaris 3211180",
+ transFl:"Polaris AGL Synthetic Gearcase",transInt:200,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"Polaris AGL",rearDiff:"Polaris AGL",
+ battery:"Group U1R / 330+ CCA",wipers:"N/A",
+ notes:"Replace drain plug washer #5812232 every oil change. Inspect drive belt every 50 hrs. Polaris PS-4 required."},
+
+{id:12,name:"Polaris Sportsman XP 1000 HL Black",type:"ATV",serial:"SN: 1206181000227",engine:"Polaris ProStar 999cc",fuel:"Gas",
+ oilType:"0W-40 Full Synthetic (Polaris PS-4)",oilQty:2.5,oilFilter:"Polaris 2540086",oilInterval:100,
+ airOuter:"Polaris 1253052",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK LZKAR6AP-11",belts:"N/A",
+ transFl:"Polaris AGL Synthetic Gearcase",transInt:200,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"Polaris AGL",rearDiff:"Polaris AGL",
+ battery:"Group U1R / 330+ CCA",wipers:"N/A",
+ notes:"Polaris PS-4 required. Check front/rear diff annually."},
+
+{id:13,name:"2018 Polaris Sportsman XP 1000 HL Black/Grey",type:"ATV",serial:"SN: 1205655002167",engine:"Polaris ProStar 999cc",fuel:"Gas",
+ oilType:"0W-40 Full Synthetic (Polaris PS-4)",oilQty:2.5,oilFilter:"Polaris 2540086",oilInterval:100,
+ airOuter:"Polaris 1253052",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK LZKAR6AP-11",belts:"N/A",
+ transFl:"Polaris AGL Synthetic Gearcase",transInt:200,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"Polaris AGL",rearDiff:"Polaris AGL",
+ battery:"Group U1R / 330+ CCA",wipers:"N/A",
+ notes:"Identical to other Sportsman XP 1000 units."},
+
+{id:14,name:"Polaris Sportsman XP 1000 HL Grey/Yellow",type:"ATV",serial:"SN: 1205181001483",engine:"Polaris ProStar 999cc",fuel:"Gas",
+ oilType:"0W-40 Full Synthetic (Polaris PS-4)",oilQty:2.5,oilFilter:"Polaris 2540086",oilInterval:100,
+ airOuter:"Polaris 1253052",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK LZKAR6AP-11",belts:"N/A",
+ transFl:"Polaris AGL Synthetic Gearcase",transInt:200,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"Polaris AGL",rearDiff:"Polaris AGL",
+ battery:"Group U1R / 330+ CCA",wipers:"N/A",
+ notes:"Identical to other Sportsman XP 1000 units."},
+
+{id:15,name:"2017 Polaris Sportsman XP 1000 Grey/Blue",type:"ATV",serial:"SN: 0120548300566",engine:"Polaris ProStar 999cc",fuel:"Gas",
+ oilType:"0W-40 Full Synthetic (Polaris PS-4)",oilQty:2.5,oilFilter:"Polaris 2540086",oilInterval:100,
+ airOuter:"Polaris 1253052",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK LZKAR6AP-11",belts:"N/A",
+ transFl:"Polaris AGL Synthetic Gearcase",transInt:200,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"Polaris AGL",rearDiff:"Polaris AGL",
+ battery:"Group U1R / 330+ CCA",wipers:"N/A",
+ notes:"Oldest of the four Sportsman XP 1000 units."},
+
+{id:16,name:"Kubota SVL75-3 Compact Track Loader",type:"Skid steer",serial:"SVL75-3CHFW / Eng 8PJ0099",engine:"Kubota V3307-TE5A 4-cyl Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (API CK-4)",oilQty:10.6,oilFilter:"Kubota HH1C0-32430",oilInterval:250,
+ airOuter:"Kubota 59800-26110",airInner:"Kubota 3A111-19130",cabinFilter:"Kubota 6A671-75090 (2 required)",
+ sparkPlug:"N/A — Diesel",belts:"Track tension: check every 50 hrs",
+ transFl:"Kubota Super UDT2",transInt:500,
+ hydFl:"Kubota Super UDT2",hydFilter:"Kubota HHTA0-59900",hydInt:250,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group 24F / 750+ CCA",wipers:"N/A",
+ notes:"⚠ CRITICAL: 10.6 qts engine oil. Hyd return filter HHTA0-59900 every 250 hrs. Fuel filter: V0631-51880. 2 cabin filters required. Track tension check every 50 hrs."},
+
+{id:17,name:"Kubota SQ-1200-USA Diesel Generator",type:"Generator",serial:"SQ-1200-USA",engine:"Kubota V3300 4-cyl Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (API CF-4)",oilQty:14,oilFilter:"Kubota HH1C0-32430",oilInterval:200,
+ airOuter:"Kubota 15741-11082 (outer)",airInner:"Kubota 15741-11080 (inner)",cabinFilter:"N/A",
+ sparkPlug:"N/A — Diesel",belts:"Check serpentine annually",
+ transFl:"N/A",transInt:null,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group 31 / 925+ CCA",wipers:"N/A",
+ notes:"⚠ CRITICAL: 14 qts — largest capacity on fleet. First change at 50 hrs. Fuel filter: HH166-43560 every 200 hrs."},
+
+{id:18,name:'2021 DeWalt Z160 60" Zero-Turn #1',type:"Lawn mower",serial:"SN: 1D15MH30005",engine:"Kawasaki FR730V 24HP V-Twin",fuel:"Gas",
+ oilType:"10W-40 Full Synthetic",oilQty:2.1,oilFilter:"Kawasaki 49065-0736 (was 49065-0721)",oilInterval:100,
+ airOuter:"Kawasaki 11013-0752",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK BPR4ES — 2 plugs (V-Twin)",belts:"Deck: MTD 754P06094 / Drive: MTD 954-04219",
+ transFl:"Hydro-Gear 20W-50 (ZT-3100 transaxles)",transInt:500,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group U1 / 230+ CCA",wipers:"N/A",
+ notes:"Check deck belt every 25 hrs. Fuel filter: Kawasaki 49019-0031."},
+
+{id:19,name:'2021 DeWalt Z160 60" Zero-Turn #2',type:"Lawn mower",serial:"SN: 1D14MH60023",engine:"Kawasaki FR730V 24HP V-Twin",fuel:"Gas",
+ oilType:"10W-40 Full Synthetic",oilQty:2.1,oilFilter:"Kawasaki 49065-0736 (was 49065-0721)",oilInterval:100,
+ airOuter:"Kawasaki 11013-0752",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK BPR4ES — 2 plugs (V-Twin)",belts:"Deck: MTD 754P06094 / Drive: MTD 954-04219",
+ transFl:"Hydro-Gear 20W-50 (ZT-3100 transaxles)",transInt:500,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group U1 / 230+ CCA",wipers:"N/A",
+ notes:"Identical to Z160 Unit #1."},
+
+{id:20,name:'Scag Cheetah II 61" — SCZII-61V-37BV-EFI',type:"Lawn mower",serial:"SN: P9500129",engine:"B&S Vanguard 37HP EFI 993cc",fuel:"Gas",
+ oilType:"10W-30 Full Synthetic",oilQty:2.1,oilFilter:"B&S 491056S / 696854",oilInterval:100,
+ airOuter:"B&S 844961",airInner:"B&S 797704 (foam pre-cleaner)",cabinFilter:"N/A",
+ sparkPlug:"B&S 491055 / Champion RC12YC — 2 plugs",belts:"Deck: Scag 483157 / Drive: Scag 482461",
+ transFl:"Hydro-Gear 20W-50 (ZT-5400)",transInt:500,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group U1 / 230+ CCA",wipers:"N/A",
+ notes:"EFI — no carb cleaner in fuel. Dual 15-gal tanks. Deck belt 483157 check every 25 hrs."},
+
+{id:21,name:"2012 Suzuki KingQuad 500 AXi Camo",type:"ATV",serial:"Verify VIN on frame",engine:"Suzuki 493cc 4-stroke",fuel:"Gas",
+ oilType:"10W-40 Full Synthetic (JASO MA required)",oilQty:2.1,oilFilter:"Suzuki 16510-07J00 / K&N KN-138",oilInterval:100,
+ airOuter:"Suzuki 13780-07G01",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK CR8E",belts:"N/A",
+ transFl:"80W-90 GL-4 Gear Oil",transInt:300,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"80W-90 GL-4",rearDiff:"80W-90 GL-4",
+ battery:"Group YTX12-BS / 180+ CCA",wipers:"N/A",
+ notes:"⚠ CRITICAL: JASO MA required — destroys wet clutch without it. Front/rear diff: 80W-90 GL-4. Please verify VIN on frame separately."},
+
+{id:22,name:"Mahindra 5010 HST Tractor",type:"Tractor",serial:"SN: 50HCG01097",engine:"Daedong 4B243LW 2.4L 4-cyl Diesel",fuel:"Diesel",
+ oilType:"15W-40 Diesel (API CF-4)",oilQty:9,oilFilter:"Mahindra 14501673991",oilInterval:200,
+ airOuter:"Mahindra 15541012221 (outer)",airInner:"Mahindra 15541012230 (inner)",cabinFilter:"N/A",
+ sparkPlug:"N/A — Diesel",belts:"Fan belt / alternator belt — check annually",
+ transFl:"RPM Tractor Hydraulic / TDH Premium (trans+hyd shared)",transInt:500,
+ hydFl:"RPM Tractor Hydraulic / TDH Premium",hydFilter:"Mahindra V7211031065",hydInt:200,
+ frontDiff:"SAE 80W-90 GL-4 (front axle)",rearDiff:"SAE 80W-90 GL-4 (rear axle)",
+ battery:"Group 31 / 925+ CCA",wipers:"N/A",
+ notes:"⚠ CRITICAL: Front axle: drain center diff AND each drive separately. Fuel filter: 12305152100. Bleed fuel system after filter change. Trans+Hyd share TDH fluid."},
+
+{id:23,name:"CountyLine 25-Ton Log Splitter",type:"Other",serial:"Honda GC190 engine",engine:"Honda GC190 6.5HP",fuel:"Gas (small engine)",
+ oilType:"SAE 30 (>50°F) / 10W-30 (<50°F)",oilQty:0.58,oilFilter:"NO FILTER — splash lube",oilInterval:50,
+ airOuter:"Honda 17211-ZL8-023",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"NGK BPR6ES",belts:"N/A",
+ transFl:"N/A",transInt:null,
+ hydFl:"AW32 or AW46 Hydraulic Oil",hydFilter:"N/A",hydInt:200,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"N/A",wipers:"N/A",
+ notes:"⚠ NO oil filter. Only 0.58 qt (19 oz) — DO NOT OVERFILL. Hydraulic reservoir: 4 gal AW32/AW46. Check hydraulic level BEFORE every use."},
+
+{id:24,name:'Scag Tiger Cat II 52" — STCII-52V-28BV-EFI',type:"Lawn mower",serial:"SN: R9700803",engine:"B&S Vanguard 28HP EFI 49E877",fuel:"Gas",
+ oilType:"10W-30 Full Synthetic",oilQty:1.9,oilFilter:"B&S 491056S / 696854",oilInterval:100,
+ airOuter:"B&S 844961",airInner:"B&S 797704 (foam pre-cleaner)",cabinFilter:"N/A",
+ sparkPlug:"B&S 491055 / Champion RC12YC — 2 plugs",belts:"Deck: Scag 483242 / Drive: check label",
+ transFl:"Hydro-Gear 20W-50 (ZT-3100)",transInt:500,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group U1 / 230+ CCA",wipers:"N/A",
+ notes:"EFI — no carb cleaner. Deck belt 483242 check every 25 hrs. Same oil filter as Cheetah II."},
+
+{id:25,name:"Generac Guardian 22kW Standby Generator",type:"Generator",serial:"Evolution Controller / WiFi",engine:"Generac G-Force 999cc air-cooled",fuel:"Natural Gas",
+ oilType:"5W-30 Full Synthetic",oilQty:1.7,oilFilter:"Generac 070185ES",oilInterval:200,
+ airOuter:"Generac 0J8478S",airInner:"N/A",cabinFilter:"N/A",
+ sparkPlug:"Generac 0G0767A — 2 plugs",belts:"N/A",
+ transFl:"N/A",transInt:null,
+ hydFl:"N/A",hydFilter:"N/A",hydInt:null,
+ frontDiff:"N/A",rearDiff:"N/A",
+ battery:"Group 26R / 540+ CCA (or 35 AGM / 650+ CCA)",wipers:"N/A",
+ notes:"Self-tests weekly — log hrs from Evolution controller. Annual: oil+filter+plugs+air filter. Kit: Generac 0J93230SSM. Natural gas pressure: 3.5-7 in WC. AGM battery recommended."},
+];
+
+// PARTS LIST DATA
+const PARTS_LIST = [
+{cat:"OIL FILTERS",part:"ACDelco PF64",qty:2,applies:"2015 & 2017 Escalade",note:"0W-20 engines"},
+{cat:"OIL FILTERS",part:"ACDelco PF48E",qty:2,applies:"2010 & 2011 Escalade",note:"⚠ Different from PF64"},
+{cat:"OIL FILTERS",part:"Motorcraft FL-2051S",qty:1,applies:"2014 Ford F-350 Diesel",note:"6.7L Power Stroke"},
+{cat:"OIL FILTERS",part:"Kubota HH150-32094",qty:3,applies:"3× Kubota RTV-X1100C",note:"All three Kubotas same"},
+{cat:"OIL FILTERS",part:"Kubota HH1C0-32430",qty:2,applies:"SVL75-3 + SQ-1200 Generator",note:"Two diesel units"},
+{cat:"OIL FILTERS",part:"Polaris 2540086",qty:5,applies:"Ranger 1000 + 4× Sportsman XP 1000",note:"All 5 Polaris same"},
+{cat:"OIL FILTERS",part:"Can-Am 420956741 / Hiflo HF152",qty:1,applies:"2021 Can-Am Outlander 650",note:""},
+{cat:"OIL FILTERS",part:"Suzuki 16510-07J00 / K&N KN-138",qty:1,applies:"2012 Suzuki KingQuad 500",note:""},
+{cat:"OIL FILTERS",part:"Kawasaki 49065-0736",qty:2,applies:"2× DeWalt Z160",note:"Updated # (was 49065-0721)"},
+{cat:"OIL FILTERS",part:"B&S 491056S / 696854",qty:2,applies:"Scag Cheetah II + Tiger Cat II",note:"Both Scag mowers same"},
+{cat:"OIL FILTERS",part:"Generac 070185ES",qty:1,applies:"Generac Guardian 22kW",note:"Annual"},
+{cat:"OIL FILTERS",part:"Mahindra 14501673991",qty:1,applies:"Mahindra 5010 HST",note:""},
+{cat:"OIL FILTERS",part:"NO FILTER needed",qty:0,applies:"Yardmax Tiller + Log Splitter",note:"Splash lube only"},
+{cat:"AIR FILTERS",part:"ACDelco A3205C",qty:4,applies:"All 4 Cadillac Escalades",note:"Same all 4"},
+{cat:"AIR FILTERS",part:"Motorcraft FA-1972",qty:1,applies:"2014 Ford F-350",note:""},
+{cat:"AIR FILTERS",part:"Kubota 1G319-11210 (outer)",qty:3,applies:"3× RTV-X1100C",note:"Outer element"},
+{cat:"AIR FILTERS",part:"Kubota 1G319-11212 (inner)",qty:3,applies:"3× RTV-X1100C",note:"Inner safety element"},
+{cat:"AIR FILTERS",part:"Kubota 59800-26110 (outer)",qty:1,applies:"Kubota SVL75-3",note:""},
+{cat:"AIR FILTERS",part:"Kubota 3A111-19130 (inner)",qty:1,applies:"Kubota SVL75-3",note:""},
+{cat:"AIR FILTERS",part:"Kubota 15741-11082 (outer)",qty:1,applies:"Kubota SQ-1200 Generator",note:""},
+{cat:"AIR FILTERS",part:"Kubota 15741-11080 (inner)",qty:1,applies:"Kubota SQ-1200 Generator",note:""},
+{cat:"AIR FILTERS",part:"Polaris 1253052",qty:5,applies:"Ranger 1000 + 4× Sportsman",note:"All 5 Polaris same"},
+{cat:"AIR FILTERS",part:"Can-Am 707800385",qty:1,applies:"Can-Am Outlander 650",note:""},
+{cat:"AIR FILTERS",part:"Suzuki 13780-07G01",qty:1,applies:"KingQuad 500",note:""},
+{cat:"AIR FILTERS",part:"Kawasaki 11013-0752",qty:2,applies:"2× DeWalt Z160",note:""},
+{cat:"AIR FILTERS",part:"B&S 844961 (outer)",qty:2,applies:"Scag Cheetah II + Tiger Cat II",note:"Same both Scag"},
+{cat:"AIR FILTERS",part:"B&S 797704 (foam pre-cleaner)",qty:2,applies:"Scag Cheetah II + Tiger Cat II",note:""},
+{cat:"AIR FILTERS",part:"Generac 0J8478S",qty:1,applies:"Generac Guardian 22kW",note:"Annual"},
+{cat:"AIR FILTERS",part:"Mahindra 15541012221 (outer)",qty:1,applies:"Mahindra 5010 HST",note:""},
+{cat:"AIR FILTERS",part:"Mahindra 15541012230 (inner)",qty:1,applies:"Mahindra 5010 HST",note:""},
+{cat:"AIR FILTERS",part:"Honda 17211-ZL8-023",qty:1,applies:"CountyLine Log Splitter",note:"Honda GC190"},
+{cat:"AIR FILTERS",part:"B&S 491588S",qty:1,applies:"Yardmax Tiller",note:""},
+{cat:"CABIN FILTERS",part:"GM 23117804",qty:2,applies:"2015 & 2017 Escalade",note:""},
+{cat:"CABIN FILTERS",part:"GM 15869728",qty:2,applies:"2010 & 2011 Escalade",note:"⚠ Different from above"},
+{cat:"CABIN FILTERS",part:"Kubota 6A671-75090",qty:2,applies:"Kubota SVL75-3 Cab",note:"2 required per service"},
+{cat:"SPARK PLUGS",part:"ACDelco 41-162 (iridium) ×8",qty:16,applies:"2015 & 2017 Escalade",note:"8 plugs each V8"},
+{cat:"SPARK PLUGS",part:"ACDelco 41-101 (iridium) ×8",qty:16,applies:"2010 & 2011 Escalade",note:"8 plugs each V8"},
+{cat:"SPARK PLUGS",part:"NGK LZKAR6AP-11",qty:5,applies:"5× Polaris (Ranger + Sportsman)",note:"1 plug each"},
+{cat:"SPARK PLUGS",part:"NGK DCPR8E ×2",qty:2,applies:"Can-Am Outlander 650",note:"2-cylinder"},
+{cat:"SPARK PLUGS",part:"NGK BPR4ES ×2",qty:4,applies:"2× DeWalt Z160 (V-Twin)",note:"2 per engine"},
+{cat:"SPARK PLUGS",part:"B&S 491055 / Champion RC12YC",qty:4,applies:"Scag Cheetah II + Tiger Cat II",note:"2 per EFI engine"},
+{cat:"SPARK PLUGS",part:"NGK CR8E",qty:1,applies:"Suzuki KingQuad 500",note:""},
+{cat:"SPARK PLUGS",part:"NGK BPR6ES",qty:1,applies:"CountyLine Log Splitter",note:"Honda GC190"},
+{cat:"SPARK PLUGS",part:"Champion RC12YC",qty:1,applies:"Yardmax Tiller",note:"B&S CR950"},
+{cat:"SPARK PLUGS",part:"Generac 0G0767A ×2",qty:2,applies:"Generac Guardian 22kW",note:"999cc 2-cylinder"},
+{cat:"HYDRAULIC",part:"Kubota Super UDT2",qty:"~30 qts stock",applies:"3× RTV-X1100C + SVL75-3",note:"~5qt per RTV per change"},
+{cat:"HYDRAULIC",part:"Kubota HHK32-16770",qty:3,applies:"3× RTV-X1100C",note:"Every 200 hrs"},
+{cat:"HYDRAULIC",part:"Kubota HHTA0-59900",qty:1,applies:"Kubota SVL75-3",note:"Return filter every 250 hrs"},
+{cat:"HYDRAULIC",part:"RPM/TDH Tractor Hydraulic Fluid",qty:"~8 qts stock",applies:"Mahindra 5010 HST",note:"Trans+Hyd combined"},
+{cat:"HYDRAULIC",part:"Mahindra V7211031065",qty:1,applies:"Mahindra 5010 HST",note:"Every 200 hrs"},
+{cat:"HYDRAULIC",part:"AW32 or AW46 Hydraulic Oil",qty:"4 gal",applies:"CountyLine Log Splitter",note:"Check before every use"},
+{cat:"BATTERIES",part:"Group 78 / 730+ CCA",qty:4,applies:"All 4 Cadillac Escalades",note:""},
+{cat:"BATTERIES",part:"Group 65 / 750+ CCA",qty:1,applies:"2014 Ford F-350",note:"Verify if dual battery"},
+{cat:"BATTERIES",part:"Group U1R / 300+ CCA",qty:3,applies:"3× Kubota RTV-X1100C",note:""},
+{cat:"BATTERIES",part:"Group U1R / 330+ CCA",qty:5,applies:"Polaris Ranger + 4× Sportsman",note:""},
+{cat:"BATTERIES",part:"Group 24F / 750+ CCA",qty:1,applies:"Kubota SVL75-3",note:""},
+{cat:"BATTERIES",part:"Group 31 / 925+ CCA",qty:2,applies:"Kubota SQ-1200 + Mahindra 5010",note:"Heavy equipment"},
+{cat:"BATTERIES",part:"Group U1 / 230+ CCA",qty:4,applies:"2× DeWalt + Scag Cheetah + Tiger Cat",note:""},
+{cat:"BATTERIES",part:"Group YTX14-BS / 200+ CCA",qty:1,applies:"Can-Am Outlander 650",note:""},
+{cat:"BATTERIES",part:"Group YTX12-BS / 180+ CCA",qty:1,applies:"Suzuki KingQuad 500",note:""},
+{cat:"BATTERIES",part:"Group 26R / 540+ or 35AGM / 650+ CCA",qty:1,applies:"Generac Guardian 22kW",note:"AGM recommended"},
+{cat:"BELTS",part:"Polaris 3211180 (Ranger drive belt)",qty:1,applies:"2020 Polaris Ranger 1000",note:"Inspect every 50 hrs"},
+{cat:"BELTS",part:"Kubota K5651-17150 (RTV drive belt)",qty:3,applies:"3× Kubota RTV-X1100C",note:""},
+{cat:"BELTS",part:"MTD 754P06094 (Z160 deck belt)",qty:2,applies:"2× DeWalt Z160",note:"60\" deck"},
+{cat:"BELTS",part:"MTD 954-04219 (Z160 drive belt)",qty:2,applies:"2× DeWalt Z160",note:""},
+{cat:"BELTS",part:"Scag 483157 (Cheetah II deck)",qty:1,applies:"Scag Cheetah II 61\"",note:"Check every 25 hrs"},
+{cat:"BELTS",part:"Scag 482461 (Cheetah II drive)",qty:1,applies:"Scag Cheetah II 61\"",note:""},
+{cat:"BELTS",part:"Scag 483242 (Tiger Cat II deck)",qty:1,applies:"Scag Tiger Cat II 52\"",note:"Check every 25 hrs"},
+{cat:"FUEL FILTERS",part:"Motorcraft FD-4622",qty:1,applies:"2014 Ford F-350",note:"Every 15,000 mi"},
+{cat:"FUEL FILTERS",part:"Kubota 6A320-59930",qty:3,applies:"3× Kubota RTV-X1100C",note:"Every 200 hrs"},
+{cat:"FUEL FILTERS",part:"Kubota V0631-51880",qty:1,applies:"Kubota SVL75-3",note:""},
+{cat:"FUEL FILTERS",part:"Kubota HH166-43560",qty:1,applies:"Kubota SQ-1200 Generator",note:"Every 200 hrs"},
+{cat:"FUEL FILTERS",part:"Mahindra 12305152100",qty:1,applies:"Mahindra 5010 HST",note:"Bleed fuel system after"},
+{cat:"FUEL FILTERS",part:"Kawasaki 49019-0031",qty:2,applies:"2× DeWalt Z160",note:""},
+{cat:"WIPER BLADES",part:'22" driver + 22" passenger',qty:8,applies:"All 4 Cadillac Escalades",note:"2 blades per vehicle"},
+{cat:"WIPER BLADES",part:'22" driver + 22" passenger',qty:2,applies:"2014 Ford F-350",note:""},
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let readings = {}; // {vehicleId: {current, lastOil, lastHyd}}
+let logs = [];
+let nextLogId = 1;
+let currentTab = 'fleet';
+let filterType = '';
+let fabOpen = false;
+let editVehicleId = null;
+
+const STORE = 'fleet_maintenance_v3';
+const STORE_LOGS = 'fleet_logs_v3';
+
+async function load() {
+  try {
+    const r = await window.storage.get(STORE);
+    if (r?.value) readings = JSON.parse(r.value);
+  } catch(e) { try { const s = localStorage.getItem(STORE); if(s) readings = JSON.parse(s); } catch(e2){} }
+  try {
+    const r = await window.storage.get(STORE_LOGS);
+    if (r?.value) { const d = JSON.parse(r.value); logs = d.logs||[]; nextLogId = d.nextId||1; }
+  } catch(e) { try { const s = localStorage.getItem(STORE_LOGS); if(s) { const d=JSON.parse(s); logs=d.logs||[]; nextLogId=d.nextId||1; } } catch(e2){} }
+  render();
+}
+
+async function saveData() {
+  const str = JSON.stringify(readings);
+  try { await window.storage.set(STORE, str); } catch(e) { try { localStorage.setItem(STORE, str); } catch(e2){} }
+}
+async function saveLogs() {
+  const str = JSON.stringify({logs, nextId: nextLogId});
+  try { await window.storage.set(STORE_LOGS, str); } catch(e) { try { localStorage.setItem(STORE_LOGS, str); } catch(e2){} }
+}
+
+// ═══════════════════════════════════════════════════════
+// STATUS CALCULATION
+// ═══════════════════════════════════════════════════════
+function oilStatus(v) {
+  const r = readings[v.id];
+  if (!r?.current || !r?.lastOil) return 'unknown';
+  const used = r.current - r.lastOil;
+  const pct = used / v.oilInterval;
+  if (pct >= 1) return 'overdue';
+  if (pct >= 0.85 || (v.oilInterval - used) <= 50) return 'due';
+  return 'ok';
+}
+
+function hydStatus(v) {
+  if (!v.hydInt) return null;
+  const r = readings[v.id];
+  if (!r?.current || !r?.lastHyd) return 'unknown';
+  const used = r.current - r.lastHyd;
+  const pct = used / v.hydInt;
+  if (pct >= 1) return 'overdue';
+  if (pct >= 0.85 || (v.hydInt - used) <= 50) return 'due';
+  return 'ok';
+}
+
+function statusBadge(v) {
+  const s = oilStatus(v);
+  if (s === 'overdue') return '<span class="badge b-over">OIL OVERDUE</span>';
+  if (s === 'due') return '<span class="badge b-due">OIL DUE SOON</span>';
+  if (s === 'ok') return '<span class="badge b-ok">Oil OK</span>';
+  return '<span class="badge b-na">No Reading</span>';
+}
+
+function fuelBadge(fuel) {
+  if (fuel === 'Diesel') return '<span class="badge b-diesel">Diesel</span>';
+  if (fuel === 'Gas (small engine)') return '<span class="badge b-small">Small Engine</span>';
+  if (fuel === 'Natural Gas') return '<span class="badge b-natgas">Natural Gas</span>';
+  return '<span class="badge b-gas">Gas</span>';
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════
+function render() {
+  renderSummary();
+  if (currentTab === 'fleet') renderFleet();
+  else if (currentTab === 'schedule') renderSchedule();
+  else if (currentTab === 'log') renderLog();
+  else if (currentTab === 'parts') renderParts();
+
+  const showSearch = currentTab === 'fleet' || currentTab === 'log';
+  document.getElementById('search-bar').style.display = showSearch ? '' : 'none';
+  document.getElementById('filter-row').style.display = currentTab === 'fleet' ? '' : 'none';
+  document.getElementById('fab').style.display = '';
+  document.getElementById('hdr-sub').textContent = `${VEHICLES.length} vehicles • ${logs.length} service records`;
+}
+
+function renderSummary() {
+  const total = VEHICLES.length;
+  const overdue = VEHICLES.filter(v => oilStatus(v) === 'overdue').length;
+  const due = VEHICLES.filter(v => oilStatus(v) === 'due').length;
+  const ok = VEHICLES.filter(v => oilStatus(v) === 'ok').length;
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="v">${total}</div><div class="l">Total</div></div>
+    <div class="stat red"><div class="v">${overdue}</div><div class="l">Overdue</div></div>
+    <div class="stat amber"><div class="v">${due}</div><div class="l">Due Soon</div></div>
+    <div class="stat green"><div class="v">${ok}</div><div class="l">OK</div></div>
+    <div class="stat"><div class="v">${logs.length}</div><div class="l">Service Records</div></div>`;
+}
+
+function renderFleet() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const list = VEHICLES.filter(v => {
+    const typeMatch = !filterType || v.type === filterType ||
+      (filterType === 'UTV' && v.type === 'UTV') ||
+      (filterType === 'ATV' && v.type === 'ATV');
+    const searchMatch = !q || [v.name, v.serial, v.engine, v.fuel, v.oilType].join(' ').toLowerCase().includes(q);
+    return (filterType ? v.type === filterType : true) && searchMatch;
+  });
+
+  const area = document.getElementById('scroll-area');
+  if (!list.length) { area.innerHTML = '<div class="empty"><span class="icon">🚛</span><h3>No vehicles match</h3><p>Try a different search or filter.</p></div>'; return; }
+
+  area.innerHTML = list.map(v => {
+    const r = readings[v.id] || {};
+    const s = oilStatus(v);
+    const hs = hydStatus(v);
+    const cur = r.current != null ? r.current.toLocaleString() : '—';
+    const lastOil = r.lastOil != null ? r.lastOil.toLocaleString() : '—';
+    const nextOil = (r.lastOil != null) ? (r.lastOil + v.oilInterval).toLocaleString() : '—';
+    return `<div class="vcard" onclick="openDetail(${v.id})">
+      <div class="vcard-top">
+        <div><div class="vcard-name">${v.name}</div><div class="vcard-serial">${v.serial}</div></div>
+        <div class="vcard-badges">${fuelBadge(v.fuel)}${statusBadge(v)}</div>
+      </div>
+      <div class="vcard-grid">
+        <div class="vf"><label>Oil Type</label><span>${v.oilType}</span></div>
+        <div class="vf"><label>Oil Filter</label><span>${v.oilFilter}</span></div>
+        <div class="vf"><label>Oil Qty</label><span>${v.oilQty} qts</span></div>
+        <div class="vf"><label>Oil Interval</label><span>Every ${v.oilInterval.toLocaleString()} hrs/mi</span></div>
+        <div class="vf"><label>Current Hrs/Mi</label><span>${cur}</span></div>
+        <div class="vf"><label>Next Oil Due At</label><span>${nextOil}</span></div>
+      </div>
+      <div class="vcard-hr"></div>
+      <div class="vcard-actions">
+        <button class="va-btn primary" onclick="event.stopPropagation();openHrsSheet(${v.id})">📊 Update Hrs</button>
+        <button class="va-btn" onclick="event.stopPropagation();openLogSheetFor(${v.id})">🔧 Log Service</button>
+        <button class="va-btn" onclick="event.stopPropagation();openDetail(${v.id})">📋 Full Specs</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSchedule() {
+  const sorted = [...VEHICLES].sort((a,b) => {
+    const order = {overdue:0,due:1,ok:2,unknown:3};
+    return (order[oilStatus(a)]||3) - (order[oilStatus(b)]||3);
+  });
+  const area = document.getElementById('scroll-area');
+  area.innerHTML = sorted.map(v => {
+    const r = readings[v.id] || {};
+    const s = oilStatus(v);
+    const hs = hydStatus(v);
+    const cur = r.current != null ? r.current : null;
+    const used = (cur != null && r.lastOil != null) ? cur - r.lastOil : null;
+    const pct = used != null ? Math.min(100, Math.round(used/v.oilInterval*100)) : 0;
+    const barColor = s === 'overdue' ? '#C00000' : s === 'due' ? '#E07B00' : '#215732';
+    const remaining = (cur != null && r.lastOil != null) ? (v.oilInterval - used) : null;
+    const bgClass = s === 'overdue' ? 'background:#FFF0F0;border-color:#C00000' : s === 'due' ? 'background:#FFF8EE;border-color:#E07B00' : '';
+    return `<div class="vcard" style="${bgClass}" onclick="openHrsSheet(${v.id})">
+      <div class="vcard-top">
+        <div><div class="vcard-name">${v.name}</div></div>
+        <div class="vcard-badges">${statusBadge(v)}</div>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="vcard-grid">
+        <div class="vf"><label>Interval</label><span>Every ${v.oilInterval.toLocaleString()}</span></div>
+        <div class="vf"><label>Last Change</label><span>${r.lastOil != null ? r.lastOil.toLocaleString() : '—'}</span></div>
+        <div class="vf"><label>Current</label><span>${cur != null ? cur.toLocaleString() : 'Tap to enter'}</span></div>
+        <div class="vf"><label>${s === 'overdue' ? '⚠ Overdue By' : 'Remaining'}</label>
+          <span style="color:${barColor};font-weight:700">${remaining != null ? Math.abs(remaining).toLocaleString() : '—'}</span></div>
+      </div>
+      ${v.hydInt ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)">
+        Hydraulic: ${hs === 'overdue' ? '<span style="color:var(--red);font-weight:700">OVERDUE</span>' : hs === 'due' ? '<span style="color:var(--amber);font-weight:700">Due Soon</span>' : hs === 'ok' ? '<span style="color:var(--green)">OK</span>' : 'No reading'} — Interval: every ${v.hydInt} hrs
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderLog() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const area = document.getElementById('scroll-area');
+  const sorted = [...logs].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const filtered = q ? sorted.filter(l => [l.vehicle,l.type,l.parts,l.notes,l.tech].join(' ').toLowerCase().includes(q)) : sorted;
+  if (!filtered.length) { area.innerHTML = '<div class="empty"><span class="icon">📋</span><h3>No service records yet</h3><p>Tap "+ Log Service" to add your first record.</p></div>'; return; }
+  area.innerHTML = filtered.map(l => `
+    <div class="log-card">
+      <div class="log-card-top">
+        <div class="log-vehicle">${l.vehicle}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="log-date">${l.date}</div>
+          <button onclick="deleteLog(${l.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--text3);padding:2px">✕</button>
+        </div>
+      </div>
+      <div class="log-type">${l.type}</div>
+      <div class="log-detail">${l.hrs ? `Hrs/Mi: ${l.hrs.toLocaleString()} — ` : ''}${l.parts || ''}</div>
+      ${l.notes ? `<div class="log-detail" style="margin-top:4px">${l.notes}</div>` : ''}
+      ${l.cost ? `<div class="log-cost">Parts: $${parseFloat(l.cost).toFixed(2)}</div>` : ''}
+      <div class="log-tech">Performed by: ${l.tech}</div>
+    </div>`).join('');
+}
+
+function renderParts() {
+  const area = document.getElementById('scroll-area');
+  const cats = [...new Set(PARTS_LIST.map(p => p.cat))];
+  area.innerHTML = cats.map(cat => {
+    const items = PARTS_LIST.filter(p => p.cat === cat);
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:8px">${cat}</div>
+      ${items.map(p => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px">
+          <div style="font-size:13px;font-weight:600;flex:1">${p.part}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--accent);margin-left:8px;flex-shrink:0">×${p.qty}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text2)">${p.applies}</div>
+        ${p.note ? `<div style="font-size:10px;color:${p.note.startsWith('⚠') ? 'var(--red)' : 'var(--text3)'};margin-top:2px;font-weight:${p.note.startsWith('⚠') ? '700' : '400'}">${p.note}</div>` : ''}
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// TABS & FILTERS
+// ═══════════════════════════════════════════════════════
+function setTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if (document.getElementById('search-input')) document.getElementById('search-input').value = '';
+  render();
+}
+
+function setFilter(type, el) {
+  filterType = type;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════
+// DETAIL SHEET
+// ═══════════════════════════════════════════════════════
+function openDetail(id) {
+  const v = VEHICLES.find(x => x.id === id);
+  if (!v) return;
+  const r = readings[id] || {};
+  document.getElementById('detail-title').textContent = v.name;
+
+  const s = oilStatus(v);
+  const hs = hydStatus(v);
+  const cur = r.current != null ? r.current : null;
+  const used = (cur != null && r.lastOil != null) ? cur - r.lastOil : null;
+  const pct = used != null ? Math.min(100, Math.round(used/v.oilInterval*100)) : 0;
+  const barColor = s === 'overdue' ? '#C00000' : s === 'due' ? '#E07B00' : '#215732';
+
+  document.getElementById('detail-body').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${fuelBadge(v.fuel)}${statusBadge(v)}</div>
+
+    <div class="detail-section">Engine & Oil</div>
+    <div class="detail-grid">
+      <div class="detail-field full"><label>Engine</label><span>${v.engine}</span></div>
+      <div class="detail-field ${s === 'overdue' ? 'warn' : s === 'ok' ? 'ok' : ''}">
+        <label>Oil Status</label>
+        <span>${s === 'overdue' ? '⚠ OVERDUE' : s === 'due' ? '⚠ Due Soon' : s === 'ok' ? '✓ Up to Date' : 'No reading'}</span>
+      </div>
+      <div class="detail-field"><label>Oil Type</label><span>${v.oilType}</span></div>
+      <div class="detail-field"><label>Oil Quantity</label><span>${v.oilQty} quarts</span></div>
+      <div class="detail-field"><label>Oil Filter</label><span>${v.oilFilter}</span></div>
+      <div class="detail-field"><label>Change Interval</label><span>Every ${v.oilInterval.toLocaleString()} hrs/mi</span></div>
+      <div class="detail-field"><label>Current Hrs/Mi</label><span>${cur != null ? cur.toLocaleString() : '— (not entered)'}</span></div>
+      <div class="detail-field"><label>Last Oil Change</label><span>${r.lastOil != null ? r.lastOil.toLocaleString() : '— (not entered)'}</span></div>
+    </div>
+    ${used != null ? `<div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px">${pct}% of interval used — ${Math.max(0,v.oilInterval-used).toLocaleString()} remaining</div>` : ''}
+
+    <div class="detail-section">Filters & Air</div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Air Filter (Outer)</label><span>${v.airOuter}</span></div>
+      <div class="detail-field"><label>Air Filter (Inner)</label><span>${v.airInner}</span></div>
+      <div class="detail-field full"><label>Cabin / AC Filter</label><span>${v.cabinFilter}</span></div>
+    </div>
+
+    <div class="detail-section">Spark Plugs & Belts</div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Spark Plug(s)</label><span>${v.sparkPlug}</span></div>
+      <div class="detail-field"><label>Belt Sizes / Part #</label><span>${v.belts}</span></div>
+    </div>
+
+    <div class="detail-section">Transmission & Hydraulics</div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Transmission Fluid</label><span>${v.transFl}</span></div>
+      <div class="detail-field"><label>Trans Interval</label><span>${v.transInt ? v.transInt.toLocaleString()+' hrs/mi' : 'N/A'}</span></div>
+      <div class="detail-field"><label>Hydraulic Fluid</label><span>${v.hydFl}</span></div>
+      <div class="detail-field"><label>Hydraulic Filter</label><span>${v.hydFilter}</span></div>
+      <div class="detail-field"><label>Hyd Change Interval</label><span>${v.hydInt ? v.hydInt+' hrs' : 'N/A'}</span></div>
+      ${v.hydInt ? `<div class="detail-field ${hs === 'overdue' ? 'warn' : hs === 'ok' ? 'ok' : ''}">
+        <label>Hyd Status</label>
+        <span>${hs === 'overdue' ? '⚠ OVERDUE' : hs === 'due' ? '⚠ Due Soon' : hs === 'ok' ? '✓ OK' : 'No reading'}</span>
+      </div>` : ''}
+    </div>
+
+    <div class="detail-section">Differentials & Gear Oil</div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Front Differential</label><span>${v.frontDiff}</span></div>
+      <div class="detail-field"><label>Rear Differential</label><span>${v.rearDiff}</span></div>
+    </div>
+
+    <div class="detail-section">Battery & Wipers</div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Battery</label><span>${v.battery}</span></div>
+      <div class="detail-field"><label>Wiper Blades</label><span>${v.wipers}</span></div>
+    </div>
+
+    ${v.notes ? `<div class="detail-section">Notes / Critical Info</div>
+    <div style="background:${v.notes.includes('⚠') || v.notes.includes('CRITICAL') ? '#FFF0F0' : 'var(--surface2)'};border-radius:var(--radius-sm);padding:12px;font-size:12px;line-height:1.6;color:${v.notes.includes('⚠') || v.notes.includes('CRITICAL') ? 'var(--red)' : 'var(--text)'};font-weight:${v.notes.includes('⚠') ? '600' : '400'}">${v.notes}</div>` : ''}
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="va-btn primary" onclick="closeSheets();setTimeout(()=>openHrsSheet(${v.id}),200)" style="flex:2">📊 Update Hrs/Mi</button>
+      <button class="va-btn" onclick="closeSheets();setTimeout(()=>openLogSheetFor(${v.id}),200)" style="flex:2">🔧 Log Service</button>
+    </div>`;
+
+  openSheet('detail-sheet');
+}
+
+// ═══════════════════════════════════════════════════════
+// HOURS SHEET
+// ═══════════════════════════════════════════════════════
+let hrsVehicleId = null;
+function openHrsSheet(id) {
+  hrsVehicleId = id;
+  const v = VEHICLES.find(x => x.id === id);
+  const r = readings[id] || {};
+  document.getElementById('hrs-title').textContent = `Update: ${v.name}`;
+  document.getElementById('hrs-input').value = r.current || '';
+  document.getElementById('last-oil-input').value = r.lastOil || '';
+  document.getElementById('last-hyd-input').value = r.lastHyd || '';
+  openSheet('hrs-sheet');
+}
+function saveHours() {
+  if (!hrsVehicleId) return;
+  const cur = parseFloat(document.getElementById('hrs-input').value);
+  const lastOil = parseFloat(document.getElementById('last-oil-input').value);
+  const lastHyd = parseFloat(document.getElementById('last-hyd-input').value);
+  if (!readings[hrsVehicleId]) readings[hrsVehicleId] = {};
+  if (!isNaN(cur)) readings[hrsVehicleId].current = cur;
+  if (!isNaN(lastOil)) readings[hrsVehicleId].lastOil = lastOil;
+  if (!isNaN(lastHyd)) readings[hrsVehicleId].lastHyd = lastHyd;
+  saveData(); closeSheets(); render(); toast('Readings updated!');
+}
+
+// ═══════════════════════════════════════════════════════
+// LOG SHEET
+// ═══════════════════════════════════════════════════════
+function openLogSheet() {
+  populateVehicleSelect(null);
+  document.getElementById('log-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('log-hrs').value = '';
+  document.getElementById('log-parts').value = '';
+  document.getElementById('log-notes').value = '';
+  document.getElementById('log-cost').value = '';
+  openSheet('log-sheet');
+}
+function openLogSheetFor(id) {
+  populateVehicleSelect(id);
+  const r = readings[id] || {};
+  document.getElementById('log-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('log-hrs').value = r.current || '';
+  document.getElementById('log-parts').value = '';
+  document.getElementById('log-notes').value = '';
+  document.getElementById('log-cost').value = '';
+  openSheet('log-sheet');
+}
+function populateVehicleSelect(selectedId) {
+  const sel = document.getElementById('log-vehicle');
+  sel.innerHTML = VEHICLES.map(v => `<option value="${v.id}" ${v.id === selectedId ? 'selected' : ''}>${v.name}</option>`).join('');
+}
+function saveLog() {
+  const vehicleId = parseInt(document.getElementById('log-vehicle').value);
+  const v = VEHICLES.find(x => x.id === vehicleId);
+  const date = document.getElementById('log-date').value;
+  const type = document.getElementById('log-type').value;
+  if (!date || !type) { toast('Please fill in date and service type'); return; }
+  const hrs = parseFloat(document.getElementById('log-hrs').value);
+  const entry = {
+    id: nextLogId++,
+    vehicle: v.name,
+    vehicleId,
+    date,
+    type,
+    hrs: !isNaN(hrs) ? hrs : null,
+    parts: document.getElementById('log-parts').value.trim(),
+    notes: document.getElementById('log-notes').value.trim(),
+    tech: document.getElementById('log-tech').value,
+    cost: document.getElementById('log-cost').value,
+  };
+  logs.push(entry);
+  // Auto-update readings if oil change
+  if (type === 'Oil Change' && !isNaN(hrs)) {
+    if (!readings[vehicleId]) readings[vehicleId] = {};
+    readings[vehicleId].lastOil = hrs;
+    if (!readings[vehicleId].current || hrs > readings[vehicleId].current) readings[vehicleId].current = hrs;
+    saveData();
+  }
+  if ((type === 'Hydraulic Fluid Change') && !isNaN(hrs)) {
+    if (!readings[vehicleId]) readings[vehicleId] = {};
+    readings[vehicleId].lastHyd = hrs;
+    saveData();
+  }
+  saveLogs(); closeSheets(); render(); toast('Service record saved!');
+}
+function deleteLog(id) {
+  if (!confirm('Delete this service record?')) return;
+  logs = logs.filter(l => l.id !== id);
+  saveLogs(); render(); toast('Record deleted');
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════════════════════════
+function exportCSV() {
+  // Sheet 1: Inventory
+  const invHeaders = ['Vehicle Name','Type','Serial/VIN','Engine','Fuel','Oil Type','Oil Qty (qts)','Oil Filter','Oil Interval (hrs/mi)','Current Hrs/Mi','Last Oil Change','Next Oil Due','Oil Status','Air Filter Outer','Air Filter Inner','Cabin Filter','Spark Plug','Belts','Trans Fluid','Trans Interval','Hyd Fluid','Hyd Filter','Hyd Interval (hrs)','Last Hyd Change','Hyd Status','Front Diff','Rear Diff','Battery','Wipers','Notes'];
+  const invRows = VEHICLES.map(v => {
+    const r = readings[v.id] || {};
+    const s = oilStatus(v);
+    const hs = v.hydInt ? (hydStatus(v) || 'N/A') : 'N/A';
+    const nextOil = r.lastOil != null ? r.lastOil + v.oilInterval : '';
+    return [
+      v.name, v.type, v.serial, v.engine, v.fuel,
+      v.oilType, v.oilQty, v.oilFilter, v.oilInterval,
+      r.current ?? '', r.lastOil ?? '', nextOil,
+      s === 'overdue' ? 'OVERDUE' : s === 'due' ? 'DUE SOON' : s === 'ok' ? 'OK' : 'No Reading',
+      v.airOuter, v.airInner, v.cabinFilter, v.sparkPlug, v.belts,
+      v.transFl, v.transInt || 'N/A',
+      v.hydFl, v.hydFilter, v.hydInt || 'N/A', r.lastHyd ?? '', hs,
+      v.frontDiff, v.rearDiff, v.battery, v.wipers,
+      (v.notes || '').replace(/,/g,';').replace(/\n/g,' ')
+    ];
+  });
+
+  // Sheet 2: Service Log
+  const logHeaders = ['Date','Vehicle','Service Type','Hrs/Mileage','Parts Used','Notes','Performed By','Parts Cost ($)'];
+  const logRows = [...logs].sort((a,b) => new Date(b.date)-new Date(a.date)).map(l => [
+    l.date, l.vehicle, l.type, l.hrs ?? '', 
+    (l.parts||'').replace(/,/g,';'), (l.notes||'').replace(/,/g,';').replace(/\n/g,' '),
+    l.tech, l.cost || ''
+  ]);
+
+  // Parts List
+  const partsHeaders = ['Category','Part Description','Part Number(s)','Qty','Applies To','Notes'];
+  const partsRows = PARTS_LIST.map(p => [p.cat, p.part, '', p.qty, p.applies, p.note]);
+
+  function toCSV(headers, rows) {
+    return [headers, ...rows].map(row =>
+      row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
+    ).join('\n');
+  }
+
+  const csv1 = toCSV(invHeaders, invRows);
+  const csv2 = toCSV(logHeaders, logRows);
+  const csv3 = toCSV(partsHeaders, partsRows);
+  const full = `FLEET INVENTORY\n${csv1}\n\n\nSERVICE LOG\n${csv2}\n\n\nPARTS SHOPPING LIST\n${csv3}`;
+
+  const blob = new Blob([full], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fleet-maintenance-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('CSV exported — open in Excel or Google Sheets!');
+}
+
+// ═══════════════════════════════════════════════════════
+// SHEETS / FAB
+// ═══════════════════════════════════════════════════════
+function openSheet(id) {
+  document.getElementById('sheet-bg').classList.add('open');
+  document.getElementById(id).classList.add('open');
+}
+function closeSheets() {
+  document.getElementById('sheet-bg').classList.remove('open');
+  ['detail-sheet','hrs-sheet','log-sheet'].forEach(id => document.getElementById(id).classList.remove('open'));
+}
+function toggleFab() {
+  fabOpen = !fabOpen;
+  document.getElementById('fab-main').innerHTML = fabOpen ? '✕' : '+';
+  document.getElementById('fab-export-row').style.display = fabOpen ? 'flex' : 'none';
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+document.getElementById('sheet-bg').addEventListener('click', closeSheets);
+load();
+</script>
+</body>
+</html>
